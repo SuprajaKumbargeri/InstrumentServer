@@ -43,16 +43,19 @@ def parseDriver():
 def addDriver():
     try:
         global ini_path
-        ini_path = request.args['driverPath']
+        ini_path = request.form['driverPath']
         
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
         model_options = dps.getModelOptions(dict(config['Model and options']))
-        return jsonify({'General settings': gen_settings, 'model': model_options}), 200
+        visa_settings = dps.getVISASettings(dict(config['VISA settings']))
+        # quantities = dps.getQuantities({(key, value) for key, value in config._sections.items()\
+        #         if key not in ('General settings', 'Model and options', 'VISA settings')})
+        return jsonify({'General settings': gen_settings, 'model': model_options, 'visa': visa_settings}), 200
 
-    except:
-        my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
+    except Exception as e:
+        my_logger.error(e.args)
+        return jsonify(e.args), 400
 
 
 @bp.route('/<setting>')
