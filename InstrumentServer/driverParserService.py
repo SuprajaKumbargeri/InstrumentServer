@@ -262,7 +262,7 @@ def getVISASettings(settings: dict) -> dict:
         'tcpip_specify_port': tcpip_specify_port,
     }
 
-def getQuantities(settings: dict[dict]) -> dict:
+def getQuantities(settings: dict) -> dict:
     quantities = {}
     for key in settings:
         quantity = settings[key]

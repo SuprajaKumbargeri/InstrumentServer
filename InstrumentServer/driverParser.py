@@ -49,9 +49,9 @@ def addDriver():
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
         model_options = dps.getModelOptions(dict(config['Model and options']))
         visa_settings = dps.getVISASettings(dict(config['VISA settings']))
-        # quantities = dps.getQuantities({(key, value) for key, value in config._sections.items()\
-        #         if key not in ('General settings', 'Model and options', 'VISA settings')})
-        return jsonify({'General settings': gen_settings, 'model': model_options, 'visa': visa_settings}), 200
+        quantities = dps.getQuantities({key: value for key, value in config._sections.items()\
+                if key not in ('General settings', 'Model and options', 'VISA settings')})
+        return jsonify({'General settings': gen_settings, 'model': model_options, 'visa': visa_settings, 'quantities': quantities}), 200
 
     except Exception as e:
         my_logger.error(e.args)
