@@ -48,7 +48,6 @@ def addDriver():
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
         model_options = dps.getModelOptions(dict(config['Model and options']))
-
         return jsonify({'General settings': gen_settings, 'model': model_options}), 200
 
     except:

@@ -73,7 +73,7 @@ def getModelOptions(settings: dict) -> dict:
         model_ids = model_strs
 
     if 'check_options' in settings:
-        check_model = settings['check_options']
+        check_options = settings['check_options']
     else:
         check_options = None
 
@@ -83,7 +83,7 @@ def getModelOptions(settings: dict) -> dict:
         option_cmd = None
 
     # gets all values for any key containing key 'option_str_'
-    option_strs = [value for key, value in settings.items() if 'otion_str_' in key]
+    option_strs = [value for key, value in settings.items() if 'option_str_' in key]
 
     # gets all values for any key containing key 'option_id_'
     option_ids = [value for key, value in settings.items() if 'option_id_' in key]
