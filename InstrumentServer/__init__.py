@@ -59,6 +59,10 @@ def create_app(test_config=None):
     app.register_blueprint(driverParser.bp)
     driverParser.setLogger(my_logger)
 
+    from . import instrument_startup
+    instrument_startup.setLogger(my_logger)
+    instrument_startup.log_instruments()
+
     # Main route
     @app.route('/')
     def index():
