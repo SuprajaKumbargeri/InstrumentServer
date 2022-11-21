@@ -1,3 +1,7 @@
+'''
+    Takes dictionary of just section ['General settings'] and the path of the .ini driver
+    Returns dictionary with all keys and values (given and default) as defined by section 12.1.2 in Labber manual
+'''
 def getGenSettings(settings: dict, ini_path) -> dict:
     if 'driver_path' in settings:
         driver_path = settings['driver_path']
@@ -46,7 +50,10 @@ def getGenSettings(settings: dict, ini_path) -> dict:
         'is_controller': is_controller
     }
 
-
+'''
+    Takes dictionary of just section ['Models and options'] 
+    Returns dictionary with all keys and values (given and default) as defined by section 12.1.3 in Labber manual
+'''
 def getModelOptions(settings: dict) -> dict:
     if 'check_model' in settings:
         check_model = bool(settings['check_model'])
@@ -71,6 +78,8 @@ def getModelOptions(settings: dict) -> dict:
     # if no model_ids are provided, model_strs used instead
     if len(model_ids) == 0:
         model_ids = model_strs
+    
+    models = {model_strs[i]: model_ids[i] for i in range(len(model_strs))}
 
     if 'check_options' in settings:
         check_options = settings['check_options']
@@ -97,15 +106,21 @@ def getModelOptions(settings: dict) -> dict:
     if len(option_ids) == 0:
         option_ids = option_strs
 
+    options = {option_strs[i]: option_ids[i] for i in range(len(option_strs))}
+
     return {
         'check_model': check_model,
         'model_cmd': model_cmd,
-        'models': {model_strs[i]: model_ids[i] for i in range(len(model_strs))},
+        'models': models,
         'check_options': check_options,
         'option_cmd': option_cmd,
-        'options': {option_strs[i]: option_ids[i] for i in range(len(option_strs))}
+        'options': options
     }
 
+'''
+    Takes dictionary of just section ['VISA settings']
+    Returns dictionary with all keys and values (given and default) as defined by section 12.1.4 in Labber manual
+'''
 def getVISASettings(settings: dict) -> dict:
     if 'use_visa' in settings:
         use_visa = bool(settings['use_visa'])
@@ -262,6 +277,11 @@ def getVISASettings(settings: dict) -> dict:
         'tcpip_specify_port': tcpip_specify_port,
     }
 
+'''
+    Takes dictionary of all sections excluding ['General settings'], ['Models and options'], ['VISA settings']
+    Returns dictionary of dictionaries where each nested dictionary are
+        the quantities with all keys and values (given and default) as defined by section 12.2 in Labber manual
+'''
 def getQuantities(settings: dict) -> dict:
     quantities = {}
     for key in settings:
@@ -340,6 +360,10 @@ def getQuantities(settings: dict) -> dict:
         else:
             state_quant = None
 
+        ''' 
+        States, values, and options can have multiple entries such as state_value_1, state_value2,..., state_value_n
+        The following lines grab all keys and values with the given patterns and make a list of the values
+        '''
         state_values = [value for key, value in quantity.items() if 'state_value_' in key]
         model_values = [value for key, value in quantity.items() if 'model_value_' in key]
         option_values = [value for key, value in quantity.items() if 'option_value_' in key]
