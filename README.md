@@ -6,4 +6,7 @@ Python Flask based server handling all communication between instruments &amp; c
 2. Once in the virtual enviroment "venv", run `installPackages.bat`
 
 ### Run
+`flask --app InstrumentServer run`
+
+### Run with debugging (avoid for now)
 `flask --app InstrumentServer --debug run`
