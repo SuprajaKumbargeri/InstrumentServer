@@ -8,10 +8,11 @@
 
 <body>
     <h1>Instrument Server</h1>
+    <p>{{ utc_date }}</p>
     <h4>VISA Instruments:</h4>
-    <ul>{% for inst in visa_inst %} <li>{{ inst.generate_summary() }}</li>  {% endfor %}</ul>
+    <ul>{% for inst in visa_inst %} <li><pre>{{ inst.generate_summary() }}</pre></li>  {% endfor %}</ul>
     <h4>Pico Instruments:</h4>
-    <ul>{% for inst in pico_inst %} <li>{{ inst.generate_summary() }}</li>  {% endfor %}</ul>
+    <ul>{% for inst in pico_inst %} <li><pre>{{ inst.generate_summary() }}</pre></li>  {% endfor %}</ul>
 </body>
 
 </html>

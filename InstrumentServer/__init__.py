@@ -4,6 +4,7 @@
 
 import os
 import logging
+import datetime
 
 from flask import (Flask, jsonify, render_template)
 
@@ -68,6 +69,6 @@ def create_app(test_config=None):
     def index():
         visa_resources = instrumentDetectionServ.get_visa_instruments()
         pico_resources = instrumentDetectionServ.get_pico_instruments()
-        return render_template("index.html", pico_inst=pico_resources, visa_inst=visa_resources)
+        return render_template("index.html", pico_inst=pico_resources, visa_inst=visa_resources, utc_date=datetime.datetime.utcnow())
 
     return app
