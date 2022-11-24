@@ -1,8 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Instument Server</title>
+</head>
 
 <body>
-    <h1>Instument Server is running!</h1>
+    <h1>Instrument Server</h1>
+    <h4>VISA Instruments:</h4>
+    <ul>{% for inst in visa_inst %} <li>{{ inst.generate_summary() }}</li>  {% endfor %}</ul>
+    <h4>Pico Instruments:</h4>
+    <ul>{% for inst in pico_inst %} <li>{{ inst.generate_summary() }}</li>  {% endfor %}</ul>
 </body>
 
 </html>

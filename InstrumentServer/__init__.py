@@ -59,13 +59,15 @@ def create_app(test_config=None):
     app.register_blueprint(driverParser.bp)
     driverParser.setLogger(my_logger)
 
-    from . import instrument_detection_service as ids
+    from . InstrumentDetection import instrument_detection_service as ids
     instrumentDetectionServ = ids.InstrumentDetectionService(my_logger)
     instrumentDetectionServ.detectInstruments()
 
     # Main route
     @app.route('/')
     def index():
-        return render_template("index.html")
+        visa_resources = instrumentDetectionServ.get_visa_instruments()
+        pico_resources = instrumentDetectionServ.get_pico_instruments()
+        return render_template("index.html", pico_inst=pico_resources, visa_inst=visa_resources)
 
     return app

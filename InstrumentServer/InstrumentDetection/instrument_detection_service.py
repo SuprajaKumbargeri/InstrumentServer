@@ -1,23 +1,20 @@
 import logging
 import pyvisa
 from picoscope import *
+from . instrument_resource import InstrumentResource
 
 ###################################################################################
 # InstrumentDetectionService
 ###################################################################################
+
 
 class InstrumentDetectionService:
 
     def __init__(self, logger: logging.Logger):
         self.my_logger = logger
 
-        # Key = Resource name
-        # Value = pyVISA Resource 
-        self.visa_instrument_resources = {}
-
-        # Key = Resouce name
-        # Value = Constructed "pico" instrument object PS6000
-        self.pico_instruments = {}
+        self.visa_instrument_resources = []
+        self.pico_instruments = []
 
         # Array with all serial VISA instrument names
         self.serial_instrument_names = []
@@ -30,8 +27,18 @@ class InstrumentDetectionService:
         # TODO: Get params from DB...
         self.detect_serial_visa_instrument(self.serial_instrument_names[0], 115200, '\n')
 
-        self.my_logger.info("Detected the following VISA Interfaces: " + str(self.visa_instrument_resources.keys()))
-        self.my_logger.info("Detected the following pico Interfaces: " + str(self.pico_instruments.keys()))
+        visa_report = 'Detected the following VISA Interfaces: \n'
+        for inst in self.visa_instrument_resources:
+            visa_report += inst.generate_summary()
+            visa_report += '\n'
+        self.my_logger.info(visa_report)
+
+        pico_report = "Detected the following PICO Interfaces: \n"
+        for inst in self.pico_instruments:
+            pico_report += inst.generate_summary()
+            pico_report += '\n'
+        self.my_logger.info(pico_report)
+
 
     def detect_visa_instruments(self):
         """
@@ -51,16 +58,23 @@ class InstrumentDetectionService:
             if ("ASRL" not in resource.resource_name):
                 idn_str = str(resource.query('*IDN?'))
 
+                # Example IDN response:
+                # Agilent Technologies,33220A,SG44001573,2.02-2.02-22-2
+
                 # Remove the terminating \n
                 idn_str = idn_str[:len(idn_str) - 1]
-                model_name = idn_str.split(',')[1]
 
-                # Key = MODEL_INTERFACE ex) 33220A_GPIB0
-                key = model_name + '_' + str(resource.resource_name).split('::')[0]
-                self.visa_instrument_resources[key] = resource
+                # Split IDN output into list
+                idn_lst = idn_str.split(',')
+
+                # Construct Instrument Resource
+                inst_resource = InstrumentResource(idn_lst[0], idn_lst[1], 'VISA', str(resource.resource_name).split('::')[0], resource)
+                self.visa_instrument_resources.append(inst_resource)
+
             else:
                 self.my_logger.info("Detected Serial Interface VISA device: " + str(resource.resource_name))
                 self.serial_instrument_names.append(resource.resource_name)
+
 
     def detect_pico_instruments(self):
         """
@@ -70,13 +84,15 @@ class InstrumentDetectionService:
 
         https://pypi.org/project/picoscope/
         """
-        self.my_logger.info('Detecting connected Pico Instruments...')
+        self.my_logger.info('Detecting connected Pico Technology Instruments...')
 
         try:
             ps = ps6000.PS6000()
-            self.pico_instruments[ps.LIBNAME.upper()] = ps
+            inst_resource = InstrumentResource('Pico Technology', 'PS6000', 'PICO', 'USB', ps)
+            self.pico_instruments.append(inst_resource)
         except OSError: 
             self.my_logger.error("There was a problem loading DLLs for PS6000")
+
 
     def detect_serial_visa_instrument(self, resource_name: str, baud_rate: int,  read_termination: str):
         """
@@ -91,18 +107,29 @@ class InstrumentDetectionService:
             self.my_logger.error('There was a problem connecting to serial VISA Instrument')
 
         idn_str = str(resource.query('*IDN?'))
-        idn_str = idn_str[:len(idn_str) - 1]
-        model_name = idn_str.split(',')[1]
 
-        key = model_name + '_' + 'SERIAL'
-        self.visa_instrument_resources[key] = resource
+        # Example IDN response:
+        # DS Instruments,SG22000PRO,411,V4.65
+
+        # Remove the terminating \n
+        idn_str = idn_str[:len(idn_str) - 1]
+
+        # Split IDN output into list
+        idn_lst = idn_str.split(',')
+
+        # Construct Instrument Resource
+        inst_resource = InstrumentResource(idn_lst[0], idn_lst[1], 'SERIAL', str(resource.resource_name).split('::')[0], resource)
+        self.visa_instrument_resources.append(inst_resource)
+
 
     def get_visa_instruments(self):
         return  self.visa_instrument_resources
 
+
     def get_pico_instruments(self):
         return self.pico_instruments
-         
+
+
 def main():
     my_logger = logging.getLogger()
     handler = logging.StreamHandler()
