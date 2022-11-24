@@ -1,6 +1,3 @@
-###################################################################################
-# Status Blueprint: 'serverStatus'
-###################################################################################
 import logging
 import pyvisa
 
@@ -11,5 +8,3 @@ def setLogger(logger: logging.Logger):
 def log_instruments():
     rm = pyvisa.ResourceManager()
     my_logger.debug(rm.list_resources())
-
-

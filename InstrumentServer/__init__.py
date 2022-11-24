@@ -17,7 +17,7 @@ def setup_logger():
     formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
     handler.setFormatter(formatter)
     my_logger.addHandler(handler)
-    my_logger.setLevel(logging.DEBUG)
+    my_logger.setLevel(logging.INFO)
 
 '''
 Create the Flask Application
@@ -59,9 +59,9 @@ def create_app(test_config=None):
     app.register_blueprint(driverParser.bp)
     driverParser.setLogger(my_logger)
 
-    from . import instrument_startup
-    instrument_startup.setLogger(my_logger)
-    instrument_startup.log_instruments()
+    from . import instrument_detection_service as ids
+    instrumentDetectionServ = ids.InstrumentDetectionService(my_logger)
+    instrumentDetectionServ.detectInstruments()
 
     # Main route
     @app.route('/')
