@@ -2,7 +2,7 @@ import json
 from msilib.schema import Error
 import platform
 import logging
-from flask import request
+from flask import request, redirect, url_for
 from configparser import ConfigParser
 from flask import (Blueprint, jsonify)
 from werkzeug.exceptions import (abort, BadRequestKeyError)
@@ -51,7 +51,8 @@ def addDriver():
         visa_settings = dps.getVISASettings(dict(config['VISA settings']))
         quantities = dps.getQuantities({key: value for key, value in config._sections.items()\
                 if key not in ('General settings', 'Model and options', 'VISA settings')})
-        return jsonify({'General settings': gen_settings, 'model': model_options, 'visa': visa_settings, 'quantities': quantities}), 200
+        return redirect(url_for('instrumentDB.addInstrument', details = json.dumps({'general_settings': gen_settings, 
+        'model_and_options': model_options, 'visa': visa_settings, 'quantities': quantities})))
 
     except Exception as e:
         my_logger.error(e.args)

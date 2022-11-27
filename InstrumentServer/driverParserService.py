@@ -408,15 +408,15 @@ def getQuantities(settings: dict) -> dict:
 
         quantities[label] = {
             'label': label,
-            'datatype': datatype,
+            'data_type': datatype,
             'unit': unit,
             'def_value': def_value,
-            'tooltip': tooltip,
+            'tool_tip': tooltip,
             'low_lim': low_lim,
             'high_lim': high_lim,
             'x_name': x_name,
             'x_unit': x_unit,
-            'group': group,
+            'groupname': group,
             'section': section,
             'state_quant': state_quant,
             'state_values': state_values,
@@ -426,7 +426,7 @@ def getQuantities(settings: dict) -> dict:
             'show_in_measurement_dlg': show_in_measurement_dlg,
             'set_cmd': set_cmd,
             'get_cmd': get_cmd,
-            'combo_cmd': combo_cmd
+            #'combo_cmd': combo_cmd
         }
     
     return quantities
