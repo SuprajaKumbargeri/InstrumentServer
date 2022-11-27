@@ -1,7 +1,7 @@
 import logging
 import pyvisa
 from picoscope import *
-from . instrument_resource import InstrumentResource
+from . instrument_resource import InstrumentResource, INST_TYPE
 
 ###################################################################################
 # InstrumentDetectionService
@@ -68,7 +68,7 @@ class InstrumentDetectionService:
                 idn_lst = idn_str.split(',')
 
                 # Construct Instrument Resource
-                inst_resource = InstrumentResource(idn_lst[0], idn_lst[1], 'VISA', str(resource.resource_name).split('::')[0], resource)
+                inst_resource = InstrumentResource(idn_lst[0], idn_lst[1], INST_TYPE.VISA, str(resource.resource_name).split('::')[0], resource)
                 self.visa_instrument_resources.append(inst_resource)
 
             else:
@@ -87,11 +87,16 @@ class InstrumentDetectionService:
         self.my_logger.info('Detecting connected Pico Technology Instruments...')
 
         try:
-            ps = ps6000.PS6000()
-            inst_resource = InstrumentResource('Pico Technology', 'PS6000', 'PICO', 'USB', ps)
+            #SERIAL_NUM = 'AR571/017\x00'
+            ps = ps6000.PS6000(serialNumber=None, connect=False)
+
+            #Open Pico Instrument Asynchronously
+            ps.openUnitAsync(serialNumber=None)
+
+            inst_resource = InstrumentResource('Pico Technology', 'PS6000', INST_TYPE.PICO, 'USB', ps)
             self.pico_instruments.append(inst_resource)
-        except OSError: 
-            self.my_logger.error("There was a problem loading DLLs for PS6000")
+        except OSError as ex: 
+            self.my_logger.error("There was a problem opening PS6000: " + str(ex))
 
 
     def detect_serial_visa_instrument(self, resource_name: str, baud_rate: int,  read_termination: str):
@@ -118,7 +123,7 @@ class InstrumentDetectionService:
         idn_lst = idn_str.split(',')
 
         # Construct Instrument Resource
-        inst_resource = InstrumentResource(idn_lst[0], idn_lst[1], 'SERIAL', str(resource.resource_name).split('::')[0], resource)
+        inst_resource = InstrumentResource(idn_lst[0], idn_lst[1], INST_TYPE.VISA , str(resource.resource_name).split('::')[0], resource)
         self.visa_instrument_resources.append(inst_resource)
 
 
