@@ -5,6 +5,7 @@
 import os
 import logging
 import datetime
+from threading import Thread
 
 from flask import (Flask, jsonify, render_template)
 
@@ -27,6 +28,12 @@ Create the Flask Application
 def create_app(test_config=None):
 
     setup_logger()
+    from . InstrumentDetection import instrument_detection_service as ids
+    instrumentDetectionServ = ids.InstrumentDetectionService(my_logger)
+
+    # Delegate Instrument dectection to a separate thread
+    detectInstTh = Thread(target=instrumentDetectionServ.detectInstruments())
+    detectInstTh.start()
 
     # create and configure instrument server
     # __name__ is the name of the current Python module
@@ -54,15 +61,18 @@ def create_app(test_config=None):
     # Register Server Status blueprint
     from . import serverStatus
     app.register_blueprint(serverStatus.bp)
-    serverStatus.setLogger(my_logger)
+    serverStatus.set_Logger(my_logger)
 
     from . import driverParser
     app.register_blueprint(driverParser.bp)
     driverParser.setLogger(my_logger)
 
-    from . InstrumentDetection import instrument_detection_service as ids
-    instrumentDetectionServ = ids.InstrumentDetectionService(my_logger)
-    instrumentDetectionServ.detectInstruments()
+    # Wait for Instrument dectection to finish 
+    detectInstTh.join()
+
+    from . InstrumentCom import instrument_com
+    app.register_blueprint(instrument_com.bp)
+    instrument_com.initialize(my_logger, instrumentDetectionServ.get_visa_instruments(), instrumentDetectionServ.get_pico_instruments())
 
     # Main route
     @app.route('/')
