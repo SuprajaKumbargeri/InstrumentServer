@@ -6,18 +6,23 @@ class INST_TYPE(Enum):
 
 class InstrumentResource:
 
-    def __init__(self, mfc: str, model: str, type: INST_TYPE, interface: str, driver: object):
+    def __init__(self, mfc: str, model: str, type: INST_TYPE, interface: str, driver: object, ip=None):
         self.mfc = mfc
         self.model = model
         self.type = type
         self.interface = interface
         self.driver = driver
+        self.ip = ip
 
     def generate_summary(self) -> str:
         summary = 'Manufacturer: {0} \n'.format(self.mfc)
         summary += 'Model: {0} \n'.format(self.model)
         summary += 'Type: {0} \n'.format(self.type.value)
         summary += 'Interface: {0} \n'.format(self.interface)
+
+        if (self.ip != None):
+            summary += 'IP Address: {0} \n'.format(self.ip)
+
         return summary
 
     def get_mfc(self) -> str:

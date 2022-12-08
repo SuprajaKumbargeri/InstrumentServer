@@ -10,6 +10,19 @@ class InstrumentComService:
         self.visa_instrument_resources = visa_inst_list
         self.pico_instruments = pico_int_list
 
+    def close_all_instruments(self):
+        logger.info("Closing all connections to known Instruments...")
+
+        for inst in self.visa_instrument_resources:
+            logger.info("Closing {}".format(inst.get_model()))
+            driver = inst.get_driver()
+            driver.close()
+
+        for inst in self.pico_instruments:
+            logger.info("Closing {}".format(inst.get_model()))
+            driver = inst.get_driver()
+            driver.close()
+
     def handle_ask(self, instrument: str, cmd: str, type: INST_TYPE):
 
         logger.info("handle_ask() - instrument: " + instrument + " cmd: " + cmd)

@@ -29,6 +29,12 @@ def index():
     return jsonify("This is the /instrumentCom endpoint"), 200
 
 
+@bp.route('/closeAllInstruments/', methods=['GET'])
+def closeAllInstruments():
+    inst_com_serv.close_all_instruments()
+    return jsonify("All Instruments are closed!"), 200
+
+    
 @bp.route('/ask/', methods=['GET'])
 def ask():
     # Get the provided content as json

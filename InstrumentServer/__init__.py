@@ -77,8 +77,16 @@ def create_app(test_config=None):
     # Main route
     @app.route('/')
     def index():
-        visa_resources = instrumentDetectionServ.get_visa_instruments()
-        pico_resources = instrumentDetectionServ.get_pico_instruments()
-        return render_template("index.html", pico_inst=pico_resources, visa_inst=visa_resources, utc_date=datetime.datetime.utcnow())
+        all_inst = []
+        all_inst = instrumentDetectionServ.get_visa_instruments() + instrumentDetectionServ.get_pico_instruments()
+        return render_template("index.html", instruments=all_inst, utc_date=datetime.datetime.utcnow())
+
+    @app.route('/shutDown')
+    def shutDown():
+        instrument_com.closeAllInstruments()
+        my_logger.info("Instrumer Server is shutting down...")
+
+        # Terminate the entire application
+        os._exit(0)
 
     return app
