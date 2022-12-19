@@ -11,6 +11,10 @@ def get_db():
     my_logger.debug("db connection established!")
     return connection
 
+def close_db(connection):
+    if connection:
+        connection.close()
+
 def init_db(app):
     with app.app_context():
         
