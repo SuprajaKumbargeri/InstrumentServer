@@ -4,6 +4,8 @@
 
 import os
 import logging
+import datetime
+from threading import Thread
 
 from flask import (Flask, jsonify, render_template)
 
@@ -17,7 +19,7 @@ def setup_logger():
     formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
     handler.setFormatter(formatter)
     my_logger.addHandler(handler)
-    my_logger.setLevel(logging.DEBUG)
+    my_logger.setLevel(logging.INFO)
 
 '''
 Create the Flask Application
@@ -26,6 +28,12 @@ Create the Flask Application
 def create_app(test_config=None):
 
     setup_logger()
+    from . InstrumentDetection import instrument_detection_service as ids
+    instrumentDetectionServ = ids.InstrumentDetectionService(my_logger)
+
+    # Delegate Instrument dectection to a separate thread
+    detectInstTh = Thread(target=instrumentDetectionServ.detectInstruments())
+    detectInstTh.start()
 
     # create and configure instrument server
     # __name__ is the name of the current Python module
@@ -58,15 +66,18 @@ def create_app(test_config=None):
     # Register Server Status blueprint
     from . import serverStatus
     app.register_blueprint(serverStatus.bp)
-    serverStatus.setLogger(my_logger)
+    serverStatus.set_Logger(my_logger)
 
     from . import driverParser
     app.register_blueprint(driverParser.bp)
     driverParser.setLogger(my_logger)
 
-    from . import instrument_startup
-    instrument_startup.setLogger(my_logger)
-    instrument_startup.log_instruments()
+    # Wait for Instrument dectection to finish 
+    detectInstTh.join()
+
+    from . InstrumentCom import instrument_com
+    app.register_blueprint(instrument_com.bp)
+    instrument_com.initialize(my_logger, instrumentDetectionServ.get_visa_instruments(), instrumentDetectionServ.get_pico_instruments())
 
     # Register instrument database related blueprint
     from . import instrumentDB
@@ -76,6 +87,16 @@ def create_app(test_config=None):
     # Main route
     @app.route('/')
     def index():
-        return render_template("index.html")
+        all_inst = []
+        all_inst = instrumentDetectionServ.get_visa_instruments() + instrumentDetectionServ.get_pico_instruments()
+        return render_template("index.html", instruments=all_inst, utc_date=datetime.datetime.utcnow())
+
+    @app.route('/shutDown')
+    def shutDown():
+        instrument_com.closeAllInstruments()
+        my_logger.info("Instrumer Server is shutting down...")
+
+        # Terminate the entire application
+        os._exit(0)
 
     return app
