@@ -42,7 +42,7 @@ def create_app(test_config=None):
     my_logger.info('Creating Flask application: {}'.format(__name__))
 
     app = Flask(__name__, instance_relative_config=True)
-    app.config.from_mapping(SECRET_KEY='dev')
+    app.config.from_mapping(SECRET_KEY='dev', DATABASE='postgres://postgres:1234@localhost/instrument_db')
     app.config['JSON_SORT_KEYS'] = False
 
     if test_config is None:
@@ -57,6 +57,11 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+    
+    # Register database application
+    from . import db
+    db.setLogger(my_logger)
+    db.init_db(app)
 
     # Register Server Status blueprint
     from . import serverStatus
@@ -73,6 +78,11 @@ def create_app(test_config=None):
     from . InstrumentCom import instrument_com
     app.register_blueprint(instrument_com.bp)
     instrument_com.initialize(my_logger, instrumentDetectionServ.get_visa_instruments(), instrumentDetectionServ.get_pico_instruments())
+
+    # Register instrument database related blueprint
+    from . import instrumentDB
+    app.register_blueprint(instrumentDB.bp)
+    instrumentDB.setLogger(my_logger)
 
     # Main route
     @app.route('/')
