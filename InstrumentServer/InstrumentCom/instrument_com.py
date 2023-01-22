@@ -45,11 +45,14 @@ def ask():
     type = content['Type']
     cmd = content['Command']
 
-    inst_resp = inst_com_serv.handle_ask(instrument=inst, cmd=cmd, type=INST_TYPE.VISA)
+    if type == "VISA":
+        inst_resp = inst_com_serv.handle_ask(instrument=inst, cmd=cmd, type=INST_TYPE.VISA)
+    elif type == "PICO":
+        inst_resp = inst_com_serv.handle_ask(instrument=inst, cmd=cmd, type=INST_TYPE.PICO)
 
-    if (inst_resp == 404):
+    if inst_resp == 404:
         resp = jsonify("Instrument {0} is not detected".format(inst)), 404
-    elif (inst_resp == 500):
+    elif inst_resp == 500:
         resp = jsonify("INTERNAL SERVER ERROR"), 500
     else:
         resp = jsonify(inst_resp), 200

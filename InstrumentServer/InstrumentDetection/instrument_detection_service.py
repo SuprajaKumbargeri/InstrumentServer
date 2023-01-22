@@ -74,21 +74,17 @@ class InstrumentDetectionService:
         Uses proprietary Python pip package that uses installed system DLLs (provided by Picoscope libraries) for
         actual communication with the instrument. Prerequisite is that these drivers are already
         installed on the system
-
         https://pypi.org/project/picoscope/
         """
         self.my_logger.info('Detecting connected Pico Technology Instruments...')
 
         try:
             #SERIAL_NUM = 'AR571/017\x00'
-            ps = ps6000.PS6000(serialNumber=None, connect=False)
-
-            #Open Pico Instrument Asynchronously
-            ps.openUnitAsync(serialNumber=None)
-
+            ps = ps6000.PS6000(serialNumber=None, connect=True)
+            # ps.openUnitAsync(serialNumber=None)
             inst_resource = InstrumentResource('Pico Technology', 'PS6000', INST_TYPE.PICO, 'USB', ps)
             self.pico_instruments.append(inst_resource)
-        except OSError as ex: 
+        except OSError as ex:
             self.my_logger.error("There was a problem opening PS6000: " + str(ex))
 
 
