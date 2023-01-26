@@ -5,6 +5,7 @@ from picoscope import ps6000
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 if __name__ == "__main__":
     print(__doc__)
 
