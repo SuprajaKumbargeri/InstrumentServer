@@ -87,9 +87,7 @@ def create_app(test_config=None):
     # Main route
     @app.route('/')
     def index():
-        all_inst = []
-        all_inst = instrumentDetectionServ.get_visa_instruments() + instrumentDetectionServ.get_pico_instruments()
-        return render_template("index.html", instruments=all_inst, utc_date=datetime.datetime.utcnow())
+        return render_template("index.html", utc_date=datetime.datetime.utcnow())
 
     @app.route('/shutDown')
     def shutDown():
