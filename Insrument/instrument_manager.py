@@ -36,14 +36,15 @@ class BaseInstrument:
 class InstrumentManager(BaseInstrument):
     def __init__(self, driver, instrument_resource):
         self._initialize_driver(driver)
-        self._driver = self.parse_driver(driver)
         self._rm, self._instrument = self._initialize_resource_manager(instrument_resource)
 
-        self._name = self._driver['General settings']['name']
+        self._name = self._driver['general_settings']['name']
         self._initialize_visa_settings()
         self._startup()
 
+    '''Communicates with instrument server to get driver for instrument'''
     def _initialize_driver(self, driver):
+        # implementation will likely change
         url = r'http://localhost:5000/driverParser/'
         response = requests.get(url, data={'driverPath': driver})
 
@@ -52,12 +53,14 @@ class InstrumentManager(BaseInstrument):
         else:
             response.raise_for_status()
 
+    '''Initializes PyVISA resource if a PyVISA resource string was given at construction'''
     def _initialize_resource_manager(self, instrument_resource):
         # string passed through in VISA form
         if isinstance(instrument_resource, str):
             resource_manager = ResourceManager()
             instrument = resource_manager.open_resource(instrument_resource)
 
+        # below will likely change
         else:
             resource_manager = None
             instrument = instrument_resource
@@ -68,20 +71,36 @@ class InstrumentManager(BaseInstrument):
     def _initialize_visa_settings(self):
         # timeout in ms
         self._instrument.timeout = self._driver['visa']['timeout'] * 1000
-        # self._instrument.term_char = self._driver['visa']['term_char']
+        self._instrument.term_char = self._driver['visa']['term_char']
+        self._instrument.send_end = self._driver['visa']['send_end_on_write']
 
         # used to determine if errors should be read after every read
         self._query_errors = self._driver['visa']['query_instr_errors']
-    
+
+    '''Sets Instrument values for serial instruments'''
+    def _set_serial_values(self):
+        self._instrument.baud_rate = self._driver['visa']['baud_rate']
+        self._instrument.data_bits = self._driver['visa']['data_bits']
+        self._instrument.stop_bits = self._driver['visa']['stop_bits']
+        self._instrument.parity = self._driver['visa']['parity'].replace(' ', '_').lower()
+
+    '''Set's default value for given quantity'''
+    def _set_default_value(self, quantity):
+        if self.quantities[quantity]['def_value']:
+            self[quantity] = self.quantities[quantity]['def_value']
+
     def _startup(self):
         # Check models supported by driver
-        if self._driver['model']['check_model']:
+        if self._driver['model_and_options']['check_model']:
             model = self.model
-            # if model not in list(self._driver['model']['models'].values()):
-            #     raise ValueError(f"The current driver does not support the instrument {model}.")
+            # TODO: Check if model matches given one in driver
+
+        for quantity in self.quantities.keys():
+            self._set_default_value(quantity)
 
         self._instrument.write(self._driver['visa']['init'])
 
+    '''Closes instrument and PyVISA resource. Should be called when done using InstrumentManager'''
     def close(self):
         # send final command
         if self._driver['visa']['final']:
@@ -127,11 +146,11 @@ class InstrumentManager(BaseInstrument):
 
     @property
     def model(self):
-        return self.ask(self._driver['model']['model_cmd'])
+        return self.ask(self._driver['model_and_options']['model_cmd'])
 
     @property
     def options(self):
-        return self.ask(self._driver['model']['option_cmd'])
+        return self.ask(self._driver['model_and_options']['option_cmd'])
 
     @property
     def quantities(self):
@@ -152,18 +171,27 @@ class InstrumentManager(BaseInstrument):
         lower_lim = self.quantities[quantity]['low_lim']
         upper_lim = self.quantities[quantity]['high_lim']
 
+        # check limits
         if not lower_lim == '-INF' and value < float(lower_lim):
             raise ValueError(f"{value} is lower than {quantity}'s lower limit of {lower_lim}.")
-        if not upper_lim == '-INF' and value < float(upper_lim):
+        if not upper_lim == '+INF' and value < float(upper_lim):
             raise ValueError(f"{value} is higher than {quantity}'s upper limit of {upper_lim}.")
 
+        # change boolean values to driver specified boolean values
+        if self.quantities[quantity]['data_type'].upper() == 'BOOLEAN':
+            if value.upper() == "TRUE":
+                value = self._driver['visa']['str_true']
+            elif value.upper() == "FALSE":
+                value = self._driver['visa']['str_false']
+
+        # add the value to the command and write to instrument
         cmd = self.quantities[quantity]['set_cmd']
         if "<*>" in cmd:
-            cmd.replace("<*>", value)
+            cmd = cmd.replace("<*>", str(value))
         else:
-            cmd += value
+            cmd += str(value)
 
-        self._instrument.write()
+        self._instrument.write(cmd)
 
     def get_state(self, quantity):
         if self.quantities[quantity]['state_quant']:

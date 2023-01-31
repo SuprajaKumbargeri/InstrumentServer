@@ -1,10 +1,9 @@
 from instrument_manager import InstrumentManager
 
-driver = 'C:\\Users\\stst5991\\Desktop\\Code\\Agilent_33220A_WaveformGenerator\\Agilent_33220A_WaveformGenerator.ini'
+driver = r'C:\Users\stst5991\Desktop\Code\DSinstr_SG12000PRO_SignalGenerator\DSinstr_SG12000PRO_SignalGenerator.ini'
 instr = InstrumentManager(driver, 'GPIB0::13::INSTR')
 try:
-    print(instr._driver)
-    # print(instr['Frequency'])
+    print(instr.get_value('Power'))
 except Exception as e:
     print(e)
 finally:
