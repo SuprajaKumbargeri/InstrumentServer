@@ -3,7 +3,7 @@ from msilib.schema import Error
 import platform
 import logging
 from flask import request, redirect, url_for
-from configparser import ConfigParser
+from configparser import RawConfigParser
 from flask import (Blueprint, jsonify)
 from werkzeug.exceptions import (abort, BadRequestKeyError)
 
@@ -11,7 +11,7 @@ from . import driverParserService as dps
 
 bp = Blueprint("driverParser", __name__,  url_prefix='/driverParser')
 ini_path = None
-config = ConfigParser()
+config = RawConfigParser()
 
 
 def setLogger(logger: logging.Logger):
@@ -25,6 +25,8 @@ def parseDriver():
     try:
         global ini_path
         ini_path = request.form['driverPath']
+
+
 
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
@@ -60,21 +62,21 @@ def addDriver():
         return jsonify(e.args), 400
 
 
-@bp.route('/<setting>')
-@bp.route('/<setting>/<field>')
-def getSettings(setting, field=None):
-    my_logger.debug("parseDriver/getSettings was hit")
-    
-    if ini_path is None:
-        my_logger.error('parseDriver/getSettings: No path to driver was given.')
-        return jsonify('No path to driver was given.'), 400
-
-    try:
-        if field is None:
-            return jsonify(dict(config[setting])), 200
-        else:
-            return jsonify(config[setting][field]), 200
-
-    except Exception:
-        my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
+# @bp.route('/<setting>')
+# @bp.route('/<setting>/<field>')
+# def getSettings(setting, field=None):
+#     my_logger.debug("parseDriver/getSettings was hit")
+#
+#     if ini_path is None:
+#         my_logger.error('parseDriver/getSettings: No path to driver was given.')
+#         return jsonify('No path to driver was given.'), 400
+#
+#     try:
+#         if field is None:
+#             return jsonify(dict(config[setting])), 200
+#         else:
+#             return jsonify(config[setting][field]), 200
+#
+#     except Exception:
+#         my_logger.error(Exception.args)
+#         return jsonify(Exception.args), 400
