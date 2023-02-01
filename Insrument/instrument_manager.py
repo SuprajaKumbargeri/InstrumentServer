@@ -1,39 +1,8 @@
 from pyvisa import *
-from configparser import ConfigParser
 import requests
-from urllib.error import HTTPError
-
-class BaseInstrument:
-    def ask(self, msg):
-        raise NotImplementedError()
-
-    def write(self, msg):
-        raise NotImplementedError()
-
-    def read(self):
-        raise NotImplementedError()
-
-    def read_values(self, format):
-        raise NotImplementedError()
-
-    def ask_for_values(self, msg, format):
-        raise NotImplementedError()
-
-    def clear(self):
-        raise NotImplementedError()
-
-    def trigger(self):
-        raise NotImplementedError()
-
-    def read_raw(self):
-        raise NotImplementedError()
-
-    @property
-    def name(self):
-        raise NotImplementedError()
 
 
-class InstrumentManager(BaseInstrument):
+class InstrumentManager:
     def __init__(self, driver, instrument_resource):
         self._initialize_driver(driver)
         self._rm, self._instrument = self._initialize_resource_manager(instrument_resource)
