@@ -189,7 +189,7 @@ class InstrumentManager(BaseInstrument):
         if "<*>" in cmd:
             cmd = cmd.replace("<*>", str(value))
         else:
-            cmd += str(value)
+            cmd += f' {value}'
 
         self._instrument.write(cmd)
 
