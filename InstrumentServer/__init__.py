@@ -2,10 +2,14 @@
 # Instrument Server
 ###################################################################################
 
+import sys
 import os
 import logging
 import datetime
-from threading import Thread
+import threading
+from PyQt6.QtCore import *
+from PyQt6.QtWidgets import *
+from PyQt6.QtGui import *
 
 from flask import (Flask, jsonify, render_template)
 
@@ -21,6 +25,19 @@ def setup_logger():
     my_logger.addHandler(handler)
     my_logger.setLevel(logging.INFO)
 
+
+
+def start_gui():
+    print('GUI thread ID: {}'.format(threading.get_native_id()))
+    from . import InstrumentServerGui as gui
+    app = QApplication(sys.argv)
+    mainWin = gui.InstrumentServerWindow()
+    availableGeometry = mainWin.screen().availableGeometry()
+    mainWin.resize(800, 600)
+    mainWin.show()
+    app.exec()
+
+
 '''
 Create the Flask Application
 '''
@@ -32,7 +49,7 @@ def create_app(test_config=None):
     instrumentDetectionServ = ids.InstrumentDetectionService(my_logger)
 
     # Delegate Instrument dectection to a separate thread
-    detectInstTh = Thread(target=instrumentDetectionServ.detectInstruments())
+    detectInstTh = threading.Thread(target=instrumentDetectionServ.detectInstruments())
     detectInstTh.start()
 
     # create and configure instrument server
@@ -83,6 +100,12 @@ def create_app(test_config=None):
     from . import instrumentDB
     app.register_blueprint(instrumentDB.bp)
     instrumentDB.setLogger(my_logger)
+
+    print('Create Flask App Thread ID: {}'.format(threading.get_native_id()))
+
+    # Start GUI on a different thread and run in the background (daemon)
+    guiThread = threading.Thread(target=start_gui, daemon=True)
+    guiThread.start()
 
     # Main route
     @app.route('/')
