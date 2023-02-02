@@ -89,9 +89,10 @@ class InstrumentManager:
             self._instrument.write(msg)
 
     def read(self):
+        msg = self._instrument.read()
         if self._query_errors:
-            return self._instrument.read()
-        return self._instrument.read()
+            msg += self._instrument.read()
+        return msg
 
     def read_values(self, format):
         return self._instrument.read_values(format)
@@ -121,17 +122,35 @@ class InstrumentManager:
     def options(self):
         return self.ask(self._driver['model_and_options']['option_cmd'])
 
+    '''Returns dictionary of quantities as in the driver'''
     @property
     def quantities(self):
         return self._driver['quantities']
 
+    '''Returns dictionary of quantities as in the driver'''
+    @property
+    def quantity_names(self):
+        return list(self._driver['quantities'].keys())
+
+    '''Returns instrument timeout in seconds'''
     @property
     def timeout(self):
-        return self._instrument.timeout
+        return self._instrument.timeout / 1000.00
 
+    '''Sets instrument timeout to value in seconds'''
+    @timeout.setter
+    def timeout(self, value):
+        self._instrument.timeout = value * 1000
+
+    '''Returns instrument delay in seconds'''
     @property
     def delay(self):
         return self._instrument.delay
+
+    '''Sets instrument delay to value in seconds'''
+    @delay.setter
+    def delay(selfself, value):
+        self._instrument.delay = value
 
     def get_value(self, quantity):
         return self.ask(self.quantities[quantity]['get_cmd'])
@@ -148,9 +167,9 @@ class InstrumentManager:
 
         # change boolean values to driver specified boolean values
         if self.quantities[quantity]['data_type'].upper() == 'BOOLEAN':
-            if value.upper() == "TRUE":
+            if str(value).upper() == "TRUE":
                 value = self._driver['visa']['str_true']
-            elif value.upper() == "FALSE":
+            elif str(value).upper() == "FALSE":
                 value = self._driver['visa']['str_false']
 
         # add the value to the command and write to instrument
