@@ -387,8 +387,10 @@ def getQuantities(settings: dict) -> dict:
 
         if 'get_cmd' in quantity:
             get_cmd = quantity['get_cmd']
+        elif set_cmd:
+            get_cmd = set_cmd + '?'
         else:
-            get_cmd = 'get_cmd?'
+            get_cmd = None
 
         # combo data type must have 'combo_def's in quantity
         cmds = [value for key, value in quantity.items() if 'cmd_def_' in key]
