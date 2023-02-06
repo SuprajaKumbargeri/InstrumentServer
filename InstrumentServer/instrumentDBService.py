@@ -1,10 +1,33 @@
 import psycopg2
 from psycopg2.extensions import AsIs
 
-def addGenSettings(connection, gen_settings: dict):
+def addInstrumentInterface(connection, ins_interface: dict, manufacturer):
  
-    id = None
+    table = 'instruments'
+    with connection.cursor() as cursor:
+
+        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
+        cursor.execute(column_names_query)
+        column_names = cursor.fetchall()
+        columns, values = [], []
+
+        for column_name in column_names:
+            if column_name[0] in ins_interface.keys():
+                if ins_interface[column_name[0]]:
+                    columns.append(column_name[0])
+                    values.append(ins_interface[column_name[0]])
+
+        columns.append('manufacturer')
+        values.append(manufacturer) 
+
+        insert_statement = cursor.mogrify("INSERT INTO %s (%s) VALUES %s;", (AsIs(table), AsIs(','.join(columns)), tuple(values)))
+        cursor.execute(insert_statement)
+
+
+def addGenSettings(connection, gen_settings: dict, cute_name):
+ 
     table = 'general_settings'
+
     with connection.cursor() as cursor:
 
         column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
@@ -17,15 +40,14 @@ def addGenSettings(connection, gen_settings: dict):
                 if gen_settings[column_name[0]]:
                     columns.append(column_name[0])
                     values.append(gen_settings[column_name[0]])
-
-        
-        insert_statement = cursor.mogrify("INSERT INTO %s (%s) VALUES %s RETURNING id;", (AsIs(table), AsIs(','.join(columns)), tuple(values)))
+       
+        columns.append('cute_name')
+        values.append(cute_name)        
+        insert_statement = cursor.mogrify("INSERT INTO %s (%s) VALUES %s;", (AsIs(table), AsIs(','.join(columns)), tuple(values)))
         cursor.execute(insert_statement)
-        id = cursor.fetchone()[0]
 
-    return id
 
-def addModelOptions(connection, model_options, id):
+def addModelOptions(connection, model_options: dict, cute_name):
 
     table = 'model_and_options'
     with connection.cursor() as cursor:
@@ -51,18 +73,17 @@ def addModelOptions(connection, model_options, id):
                     columns.append('option_ids')
                     option_ids = '{' + ','.join(model_options['options'].values()) + '}'
                     values.append(option_ids)
-
                 elif model_options[column_name[0]]:
                     columns.append(column_name[0])
                     values.append(model_options[column_name[0]])
 
-        columns.append('id')
-        values.append(id)         
+        columns.append('cute_name')
+        values.append(cute_name)         
         insert_statement = cursor.mogrify("INSERT INTO %s (%s) VALUES %s;", (AsIs(table), AsIs(','.join(columns)), tuple(values)))
         cursor.execute(insert_statement)
 
 
-def addVisaSettings(connection, visa_settings: dict, id):
+def addVisaSettings(connection, visa_settings: dict, cute_name):
 
     table = 'visa'
     with connection.cursor() as cursor:
@@ -78,12 +99,12 @@ def addVisaSettings(connection, visa_settings: dict, id):
                     columns.append(column_name[0])
                     values.append(visa_settings[column_name[0]])
 
-        columns.append('id')
-        values.append(id)         
+        columns.append('cute_name')
+        values.append(cute_name)         
         insert_statement = cursor.mogrify("INSERT INTO %s (%s) VALUES %s;", (AsIs(table), AsIs(','.join(columns)), tuple(values)))
         cursor.execute(insert_statement)
 
-def addQuantity(connection, quantity: dict, id):
+def addQuantity(connection, quantity: dict, cute_name):
 
     table = 'quantities'
     with connection.cursor() as cursor:
@@ -114,12 +135,29 @@ def addQuantity(connection, quantity: dict, id):
                     columns.append(column_name[0])
                     values.append(quantity[column_name[0]])
 
-        columns.append('id')
-        values.append(id)         
+        columns.append('cute_name')
+        values.append(cute_name)         
         insert_statement = cursor.mogrify("INSERT INTO %s (%s) VALUES %s;", (AsIs(table), AsIs(','.join(columns)), tuple(values)))        
         cursor.execute(insert_statement)
 
-def getGenSettings(connection: object, instrument_id: str) -> dict:
+def getInstrumentInterface(connection: object, instrument_name: str) -> dict:
+
+    table = 'instruments'
+    general_settings = {}
+    with connection.cursor() as cursor:
+        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
+        cursor.execute(column_names_query)
+        column_names = cursor.fetchall()
+        column_names = tuple(column_name[0] for column_name in column_names)
+        
+        get_instrument_query = cursor.mogrify("SELECT %s FROM %s WHERE cute_name = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_name))
+        cursor.execute(get_instrument_query)
+        result = cursor.fetchmany()
+        ins_interface = {key : value for key, value in zip(column_names, result[0])}
+
+    return ins_interface
+
+def getGenSettings(connection: object, instrument_name: str) -> dict:
 
     table = 'general_settings'
     general_settings = {}
@@ -129,7 +167,7 @@ def getGenSettings(connection: object, instrument_id: str) -> dict:
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
         
-        get_instrument_query = cursor.mogrify("SELECT %s FROM %s WHERE id = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_id))
+        get_instrument_query = cursor.mogrify("SELECT %s FROM %s WHERE cute_name = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_name))
         cursor.execute(get_instrument_query)
         result = cursor.fetchmany()
         general_settings = {key : value for key, value in zip(column_names, result[0])}
@@ -137,7 +175,7 @@ def getGenSettings(connection: object, instrument_id: str) -> dict:
     return general_settings
 
 
-def getModelOptions(connection: object, instrument_id: str) -> dict:
+def getModelOptions(connection: object, instrument_name: str) -> dict:
 
     table = 'model_and_options'
     model_options = {}
@@ -148,7 +186,7 @@ def getModelOptions(connection: object, instrument_id: str) -> dict:
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
 
-        get_instrument_query = cursor.mogrify("SELECT %s FROM %s WHERE id = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_id))
+        get_instrument_query = cursor.mogrify("SELECT %s FROM %s WHERE cute_name = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_name))
         cursor.execute(get_instrument_query)
         result = cursor.fetchmany()
 
@@ -158,7 +196,7 @@ def getModelOptions(connection: object, instrument_id: str) -> dict:
     return model_options
 
 
-def getVisaSettings(connection: object, instrument_id: str) -> dict:
+def getVisaSettings(connection: object, instrument_name: str) -> dict:
 
     table = 'visa'
     visa_settings = {}
@@ -168,7 +206,7 @@ def getVisaSettings(connection: object, instrument_id: str) -> dict:
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
         
-        get_instrument_query = cursor.mogrify("SELECT %s FROM %s WHERE id = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_id))
+        get_instrument_query = cursor.mogrify("SELECT %s FROM %s WHERE cute_name = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_name))
         cursor.execute(get_instrument_query)
         result = cursor.fetchmany()
         visa_settings = {key : value for key, value in zip(column_names, result[0])}
@@ -176,7 +214,7 @@ def getVisaSettings(connection: object, instrument_id: str) -> dict:
     return visa_settings
 
 
-def getQuantities(connection: object, instrument_id: str) -> dict:
+def getQuantities(connection: object, instrument_name: str) -> dict:
 
     table = 'quantities'
     quantities = {}
@@ -186,12 +224,12 @@ def getQuantities(connection: object, instrument_id: str) -> dict:
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
 
-        get_quantity_names_query = "SELECT {column} FROM {table_name} WHERE id = '{id}';".format(column='label', table_name=table, id=instrument_id)
+        get_quantity_names_query = "SELECT {column} FROM {table_name} WHERE cute_name = '{cute_name}';".format(column='label', table_name=table, cute_name=instrument_name)
         cursor.execute(get_quantity_names_query)
         quantity_names = cursor.fetchall()
 
         for quantity in quantity_names:
-            get_quantity_query = cursor.mogrify("SELECT %s FROM %s WHERE id = %s AND label = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_id, quantity[0]))
+            get_quantity_query = cursor.mogrify("SELECT %s FROM %s WHERE cute_name = %s AND label = %s;", (AsIs(','.join(column_names)), AsIs(table), instrument_name, quantity[0]))
             cursor.execute(get_quantity_query)
             result = cursor.fetchmany()
             quantities[quantity[0]] = {key : value for key, value in zip(column_names, result[0])}
