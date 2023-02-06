@@ -3,19 +3,20 @@ import requests
 
 
 class InstrumentManager:
-    def __init__(self, driver, instrument_resource):
-        self._initialize_driver(driver)
-        self._rm, self._instrument = self._initialize_resource_manager(instrument_resource)
+    def __init__(self, name, connection):
+        self._name = name
 
-        self._name = self._driver['general_settings']['name']
+        self._get_driver()
+        self._rm, self._instrument = self._initialize_resource_manager(connection)
+        
         self._initialize_visa_settings()
         self._startup()
 
     '''Communicates with instrument server to get driver for instrument'''
-    def _initialize_driver(self, driver):
+    def _get_driver(self):
         # implementation will likely change
-        url = r'http://localhost:5000/driverParser/'
-        response = requests.get(url, data={'driverPath': driver})
+        url = r'http://localhost:5000/instrumentDB/getInstrument'
+        response = requests.get(url, params={'cute_name': self._name})
 
         if 300 > response.status_code >= 200:
             self._driver = dict(response.json())
@@ -179,4 +180,7 @@ class InstrumentManager:
         self.set_value(quantity, value)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __del__(self):
         self.close()
