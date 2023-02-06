@@ -22,6 +22,7 @@ class InstrumentDetectionService:
     def detectInstruments(self):
         self.detect_visa_instruments()
 
+        '''
         self.detect_serial_visa_instrument(self.serial_instrument_names[0], 115200, '\n')
 
         self.detect_tcpip_visa_instrument('192.168.0.7', '\n', '\n')
