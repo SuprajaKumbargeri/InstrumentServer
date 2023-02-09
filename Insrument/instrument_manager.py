@@ -3,22 +3,21 @@ import requests
 
 
 class InstrumentManager:
-    def __init__(self, driver, instrument_resource):
-        """Creates instrument manager class
-            Raises:
-                ValueError -- driver is incorrect
-        """
-        self._initialize_driver(driver)
-        self._initialize_resource_manager(instrument_resource)
+    def __init__(self, name, connection):
+        self._name = name
+
+        self._get_driver()
+        self._rm, self._instrument = self._initialize_resource_manager(connection)
         self._check_model()
+
         self._initialize_visa_settings()
         self._startup()
 
-    def _initialize_driver(self, driver):
+    def _get_driver(self):
         """Communicates with instrument server to get driver for instrument"""
         # implementation will likely change
-        url = r'http://localhost:5000/driverParser/'
-        response = requests.get(url, data={'driverPath': driver})
+        url = r'http://localhost:5000/instrumentDB/getInstrument'
+        response = requests.get(url, params={'cute_name': self._name})
 
         if 300 > response.status_code >= 200:
             self._driver = dict(response.json())

@@ -1,7 +1,11 @@
 import sys
+from flask import (Flask)
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
+
+from . import db
+from . import instrument_connection_service as ics
 
 
 ###################################################################################
@@ -10,10 +14,15 @@ from PyQt6.QtGui import *
 
 class InstrumentServerWindow(QMainWindow):
 
-    def __init__(self):
+    def __init__(self, flask_app):
         print('Initializing Instrument Server GUI...')
         super(InstrumentServerWindow, self).__init__()
-        self.greenIcon = QIcon("./Icons/greenIcon.png")
+
+        self.currently_selected_instrument = None
+
+        self.flask_app = flask_app
+
+        self.greenIcon = QIcon("./Icons/greenIcon.png") 
         self.redIcon = QIcon("./Icons/redIcon.png")
 
         # The "top most" layout is vertical box layout (top -> bottom)
@@ -40,9 +49,13 @@ class InstrumentServerWindow(QMainWindow):
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
         # Some sample data (remove)
+        self.getInstrumentsWeKnowAbout()
+
+        '''
         self.add_instrument_to_list('33220A', 'Lab Instrument A', 'TCPIP0', '192.168.0.7')
         self.add_instrument_to_list('SG22000PRO', 'Lab Instrument B', 'ASRL3', '-')
         self.add_instrument_to_list('PS6000', 'Lab Instrument C', 'USB-CUSTOM', '-')
+        '''
 
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
@@ -158,6 +171,7 @@ class InstrumentServerWindow(QMainWindow):
             log_instrument = 'Currently selected instrument: {} {}'.format(selected_instruments[0].text(0),
                                                                            selected_instruments[0].text(1))
             print(log_instrument)
+            self.currently_selected_instrument = selected_instruments[0].text(1)
 
     def settings_btn_clicked(self):
         print('Settings was clicked')
@@ -170,6 +184,14 @@ class InstrumentServerWindow(QMainWindow):
 
     def connect_btn_clicked(self):
         print('Connect was clicked')
+        connect_result, fail_msg = ics.connect_to_visa_instrument(self.currently_selected_instrument)
+
+        if connect_result:
+            current_item = self.instrument_tree.currentItem()
+            print(current_item)
+            current_item.setIcon(0, self.greenIcon)
+        else:
+            QMessageBox.critical(self, 'ERROR', 'Could not connect to instrument: {}'.format(fail_msg))
 
     def connect_all_btn_clicked(self):
         print('Connect All was clicked')
@@ -199,6 +221,39 @@ class InstrumentServerWindow(QMainWindow):
     def add_instrument_to_list(self, model: str, cute_name: str, interface: str, address: str):
         newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, interface, address])
         newItem.setIcon(0, self.redIcon)
+
+
+    def clear_instrument_list(self):
+        '''
+        Clears the Instrument List 
+        '''
+        print('Clearing Instrument List...')
+        self.instrument_tree.clear()
+
+
+    def getInstrumentsWeKnowAbout(self):
+
+        self.clear_instrument_list()
+        connection = None
+
+        with self.flask_app.app_context():
+            try:
+                connection = db.get_db()
+
+                with connection.cursor() as cursor:
+                    all_instruments_query = "SELECT * FROM {};".format("instruments")
+                    cursor.execute(all_instruments_query)
+                    result = cursor.fetchall()
+
+                    for instrument in result:
+                        ip_add = '-' if instrument[3] is None else  instrument[3]
+                        self.add_instrument_to_list(instrument[1], instrument[0], instrument[2], ip_add)
+
+            except Exception as ex:
+                print('There was a problem getting all known instruments {}'.format(ex))
+
+            finally:
+                db.close_db(connection)
 
 
 

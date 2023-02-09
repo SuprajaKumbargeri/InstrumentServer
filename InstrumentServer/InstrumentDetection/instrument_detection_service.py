@@ -24,6 +24,7 @@ class InstrumentDetectionService:
 
         '''
         self.detect_serial_visa_instrument(self.serial_instrument_names[0], 115200, '\n')
+
         self.detect_tcpip_visa_instrument('192.168.0.7', '\n', '\n')
 
         self.detect_pico_instruments()
@@ -51,7 +52,6 @@ class InstrumentDetectionService:
         resources = rm.list_resources()
 
         self.my_logger.info('VISA resources: {}'.format(resources))
-
         '''
         # For all detected VISA resources...
         for inst in resources:
@@ -68,7 +68,9 @@ class InstrumentDetectionService:
             else:
                 self.my_logger.info("Detected Serial Interface VISA device: " + str(resource.resource_name))
                 self.serial_instrument_names.append(resource.resource_name)
+
         '''
+
 
 
     def detect_pico_instruments(self):
