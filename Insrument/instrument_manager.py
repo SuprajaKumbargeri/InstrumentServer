@@ -7,7 +7,7 @@ class InstrumentManager:
         self._name = name
 
         self._get_driver()
-        self._rm, self._instrument = self._initialize_resource_manager(connection)
+        self._rm, self._instrument = self._initialize_instrument(connection)
         self._check_model()
 
         self._initialize_visa_settings()
@@ -24,17 +24,16 @@ class InstrumentManager:
         else:
             response.raise_for_status()
 
-    def _initialize_resource_manager(self, instrument_resource):
+    def _initialize_instrument(self, connection):
         """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
         # string passed through in VISA form
-        if isinstance(instrument_resource, str):
+        if isinstance(connection, str):
             self._rm = ResourceManager()
-            self._instrument = self._rm.open_resource(instrument_resource)
+            self._instrument = self._rm.open_resource(connection)
 
-        # below will likely change
+        # TODO: allow for user defined instrument class
         else:
-            self._rm = None
-            self._instrument = instrument_resource
+            raise NotImplementedError("At this time, the connection string must be provided")
 
     def _check_model(self):
         """Queries instrument for model ID and compares to models listed in driver
@@ -90,7 +89,7 @@ class InstrumentManager:
             msg -- message to be written to instrument
         Returns:
             string result from instrument
-            """
+        """
         self._instrument.write(msg)
         return self._instrument.read()
 
