@@ -8,9 +8,16 @@ class InstrumentManager:
 
         self._get_driver()
         self._initialize_instrument(connection)
+
+        # TODO: add check for visa instrument
+        self._initialize_visa_settings()
+
+        if "ASLR" in self._driver["instrument_interface"]["interface"]:
+            self._set_serial_values()        
+
+        # checks if model is correct, throws error if not
         self._check_model()
 
-        self._initialize_visa_settings()
         self._startup()
 
     def _get_driver(self):
