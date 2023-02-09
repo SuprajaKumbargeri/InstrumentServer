@@ -7,7 +7,7 @@ class InstrumentManager:
         self._name = name
 
         self._get_driver()
-        self._rm, self._instrument = self._initialize_instrument(connection)
+        self._initialize_instrument(connection)
         self._check_model()
 
         self._initialize_visa_settings()
@@ -52,7 +52,7 @@ class InstrumentManager:
         """Initializes instrument settings using data in driver['VISA settings']"""
         # timeout in ms
         self._instrument.timeout = self._driver['visa']['timeout'] * 1000
-        self._instrument.term_char = self._driver['visa']['term_char']
+        self._instrument.term_chars = self._driver['visa']['term_char']
         self._instrument.send_end = self._driver['visa']['send_end_on_write']
 
         # used to determine if errors should be read after every read
