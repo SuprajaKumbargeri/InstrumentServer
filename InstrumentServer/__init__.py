@@ -27,11 +27,11 @@ def setup_logger():
 
 
 
-def start_gui():
+def start_gui(flask_app):
     print('GUI thread ID: {}'.format(threading.get_native_id()))
     from . import InstrumentServerGui as gui
     app = QApplication(sys.argv)
-    mainWin = gui.InstrumentServerWindow()
+    mainWin = gui.InstrumentServerWindow(flask_app)
     availableGeometry = mainWin.screen().availableGeometry()
     mainWin.resize(800, 600)
     mainWin.show()
@@ -104,7 +104,7 @@ def create_app(test_config=None):
     print('Create Flask App Thread ID: {}'.format(threading.get_native_id()))
 
     # Start GUI on a different thread and run in the background (daemon)
-    guiThread = threading.Thread(target=start_gui, daemon=True)
+    guiThread = threading.Thread(target=start_gui, args=[app], daemon=True)
     guiThread.start()
 
     # Main route
