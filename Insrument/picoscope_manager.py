@@ -5,11 +5,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class PicoscopeManager:
-    def __init__(self):
-        self._mfc = "Pico Technology"
-        self._name = "PS6000"
-        self._interface = "USB"
+    def __init__(self, driver):
+        self._initialize_driver(driver)
+        self._name = self._driver['general_settings']['name']
         self._ps = self._initialize_picoscope()
+
+    '''Communicates with instrument server to get driver for instrument'''
+    def _initialize_driver(self, driver):
+        # implementation will likely change
+        url = r'http://localhost:5000/driverParser/'
+        response = requests.get(url, data={'driverPath': driver})
+
+        if 300 > response.status_code >= 200:
+            self._driver = dict(response.json())
+        else:
+            response.raise_for_status()
 
     '''Initializes Picoscope'''
     def _initialize_picoscope(self):
