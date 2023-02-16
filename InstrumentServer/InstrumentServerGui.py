@@ -3,6 +3,7 @@ from flask import (Flask)
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
+import requests
 
 from . import db
 from . import instrument_connection_service as ics
@@ -153,7 +154,7 @@ class InstrumentServerWindow(QMainWindow):
     # Defines exit behavior
     def exit_gui(self):
         print('Exit was clicked')
-        self.confirm_shutdown()
+        self.close()
 
     # Defines about behavior
     def about_action(self):
@@ -210,13 +211,10 @@ class InstrumentServerWindow(QMainWindow):
         if button == QMessageBox.StandardButton.No:
             # Ignore the event that brings down this window
             event.ignore()
-
-    def confirm_shutdown(self):
-        button = QMessageBox.question(self, "Instrument Server",
-                                      "Are you sure you want to exit? This will close all instruments.")
-
-        if button == QMessageBox.StandardButton.Yes:
-           self.hide()
+        else:
+            event.accept()
+            url = r'http://localhost:5000/shutDown'
+            requests.get(url)
 
     def add_instrument_to_list(self, model: str, cute_name: str, interface: str, address: str):
         newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, interface, address])
