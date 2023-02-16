@@ -83,9 +83,9 @@ class InstrumentManager:
 
         _quantities = list(self._driver['quantities'].keys())
 
-        for quantity in _quantities:
-            print(quantity)
-            self.set_default_value(quantity)
+        # for quantity in _quantities:
+        #     print(quantity)
+        #     self.set_default_value(quantity)
 
     def close(self):
         """Sends final command to instrument if defined in driver and closes instrument and related resources"""
