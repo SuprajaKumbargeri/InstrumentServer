@@ -79,17 +79,12 @@ class InstrumentManager:
 
     def _startup(self):
         """Sends relavent start up commands to instrument"""
-        # Check models supported by driver
-        if self._driver['model_and_options']['check_model']:
-            model = self.model
-            # TODO: Check if model matches given one in driver
-
-        for quantity in self._driver['quantities'].keys():
-            self._set_default_value(quantity)
-
         self._instrument.write(self._driver['visa']['init'])
 
-        for quantity in self.quantities.keys():
+        _quantities = list(self._driver['quantities'].keys())
+
+        for quantity in _quantities:
+            print(quantity)
             self.set_default_value(quantity)
 
     def close(self):
@@ -144,14 +139,19 @@ class InstrumentManager:
         return self._driver['general_settings']['name']
 
     @property
+    def quantity_values(self) -> dict:
+        """Gets dictionary of all quantities with their values, settings, and options"""
+        quants = dict(self._driver['quantities'])
+
+        for quantity in quants.keys():
+            quants[quantity]['value'] = self.get_value(quantity)
+
+        return quants
+    
+    @property
     def quantities(self) -> dict:
-        """Gets dictionary of all quantities, their values, settings, and options"""
-        quantities = dict(self._driver['quantities'])
-
-        for quantity in quantities.keys():
-            quantities[quantity]['value'] = self.get_value(quantity)
-
-        return quantities
+        """Gets dictionary of all quantities without their values"""
+        return dict(self._driver['quantities'])
 
     @property
     def quantity_names(self) -> list[str]:
@@ -193,8 +193,9 @@ class InstrumentManager:
         Parameters:
             quantity -- Quantity name as provided in instrument driver
         """
-        if self.quantities[quantity]['def_value']:
-            self[quantity] = self.quantities[quantity]['def_value']
+        print("Trying to set value")
+        if self._driver['quantities'][quantity]['def_value']:
+            self.set_value(quantity, self._driver['quantities'][quantity]['def_value'])
 
     def set_value(self, quantity, value):
         """Sets quantity to given value after performing checks on value
@@ -236,8 +237,11 @@ class InstrumentManager:
         
         # check for valid states for Combos
         if self._driver['quantities'][quantity]['data_type'].upper() == 'COMBO':
-            valid_states = list(self._driver['quantities'][quantity]['combo_cmd'].keys())
-            valid_cmds = list(self._driver['quantities'][quantity]['combo_cmd'].values())
+            if self._driver['quantities'][quantity]['combo_cmd']:
+                valid_states = list(self._driver['quantities'][quantity]['combo_cmd'].keys())
+                valid_cmds = list(self._driver['quantities'][quantity]['combo_cmd'].values())
+            else:
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
 
             if value not in (valid_states or valid_cmds):
                 raise ValueError(f"{value} is not a recognized state of {quantity}'s states. Valid states are {valid_states}.")
@@ -265,6 +269,10 @@ class InstrumentManager:
                 raise ValueError(f"{value} is not a valid boolean value.")
             
         elif quantity_dict['data_type'].upper() == 'COMBO':
+            # combo quantity contains no states or commands
+            if not quantity_dict['combo_cmd']:
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")\
+                
             # if user provided name of the state, convert, else return given value as it is already a valid value for the commandcommand
             if value in quantity_dict['combo_cmd'].keys():
                 return quantity_dict['combo_cmd'][value]
