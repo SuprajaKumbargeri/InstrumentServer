@@ -39,7 +39,7 @@ class InstrumentServerWindow(QMainWindow):
         # Since we need multiple columns, we cannot use QListWidget. Instead, we can use QTreeWidget
         # since it support columns.
         self.instrument_tree = QTreeWidget(self)
-        self.instrument_tree.setHeaderLabels(['Instrument Model', 'Cute Name', 'Interface', 'IP Address'])
+        self.instrument_tree.setHeaderLabels(['Instrument Model', 'Cute Name', 'Address'])
 
         # Allow only one selection at a time -> SingleSelection
         self.instrument_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -48,14 +48,7 @@ class InstrumentServerWindow(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
-        # Some sample data (remove)
         self.getInstrumentsWeKnowAbout()
-
-        '''
-        self.add_instrument_to_list('33220A', 'Lab Instrument A', 'TCPIP0', '192.168.0.7')
-        self.add_instrument_to_list('SG22000PRO', 'Lab Instrument B', 'ASRL3', '-')
-        self.add_instrument_to_list('PS6000', 'Lab Instrument C', 'USB-CUSTOM', '-')
-        '''
 
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
@@ -79,6 +72,8 @@ class InstrumentServerWindow(QMainWindow):
         menu.addSeparator()
         file_menu = menu.addMenu("&File")
         file_menu.addAction(exit_action)
+
+        edit_menu = menu.addMenu("&Edit")
 
         help_menu = menu.addMenu("&Help")
 
@@ -184,14 +179,19 @@ class InstrumentServerWindow(QMainWindow):
 
     def connect_btn_clicked(self):
         print('Connect was clicked')
-        connect_result, fail_msg = ics.connect_to_visa_instrument(self.currently_selected_instrument)
 
-        if connect_result:
-            current_item = self.instrument_tree.currentItem()
-            print(current_item)
-            current_item.setIcon(0, self.greenIcon)
+        # Check if an intrument was selected
+        if self.currently_selected_instrument:
+            connect_result, fail_msg = ics.connect_to_visa_instrument(self.currently_selected_instrument)
+
+            if connect_result:
+                current_item = self.instrument_tree.currentItem()
+                current_item.setIcon(0, self.greenIcon)
+            else:
+                QMessageBox.critical(self, 'ERROR', 'Could not connect to instrument: {} {}'
+                                     .format(self.currently_selected_instrument, fail_msg))
         else:
-            QMessageBox.critical(self, 'ERROR', 'Could not connect to instrument: {}'.format(fail_msg))
+            QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
 
     def connect_all_btn_clicked(self):
         print('Connect All was clicked')
@@ -218,8 +218,8 @@ class InstrumentServerWindow(QMainWindow):
         if button == QMessageBox.StandardButton.Yes:
            self.hide()
 
-    def add_instrument_to_list(self, model: str, cute_name: str, interface: str, address: str):
-        newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, interface, address])
+    def add_instrument_to_list(self, model: str, cute_name: str, address: str) -> None:
+        newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, address])
         newItem.setIcon(0, self.redIcon)
 
 
@@ -246,13 +246,25 @@ class InstrumentServerWindow(QMainWindow):
                     result = cursor.fetchall()
 
                     for instrument in result:
-                        ip_add = '-' if instrument[3] is None else  instrument[3]
-                        self.add_instrument_to_list(instrument[1], instrument[0], instrument[2], ip_add)
+                        cute_name = instrument[0]
+                        manufacturer = instrument[1]
+                        interface = instrument[2]
+                        ip_address = instrument[3]
+                        serial = instrument[4]
+                        via = instrument[5]
+
+                        print(ip_address)
+
+                        # If an IP Address was provided, use it for Address column, otherwise use the Interface
+                        self.add_instrument_to_list(manufacturer,
+                                                    cute_name,
+                                                    (ip_address if ip_address != None else interface))
 
             except Exception as ex:
                 print('There was a problem getting all known instruments {}'.format(ex))
 
             finally:
+                # Make sure we always close the connection
                 db.close_db(connection)
 
 
