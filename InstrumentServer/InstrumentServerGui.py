@@ -194,18 +194,21 @@ class InstrumentServerWindow(QMainWindow):
         print('Connect All was clicked')
 
     def close_btn_clicked(self):
-        print(f'Attempting to disconnect {self.currently_selected_instrument}.')
-        try:
-            self._ics.disconnect_instrument(self.currently_selected_instrument)
+        self._ics.disconnect_instrument(self.currently_selected_instrument)
 
-            current_item = self.instrument_tree.currentItem()
-            current_item.setIcon(0, self.redIcon)
-            
-        except Exception as e:
-            QMessageBox.critical(self, 'ERROR', f'Could not disconnect instrument: {e}')
+        current_item = self.instrument_tree.currentItem()
+        current_item.setIcon(0, self.redIcon)
 
     def close_all_btn_clicked(self):
         print('Close All was clicked')
+        self._ics.disconnect_all_instruments()
+
+        qtiter = QTreeWidgetItemIterator(self.instrument_tree)
+        while qtiter.value():
+            current_item = qtiter.value()
+            current_item.setIcon(0, self.redIcon)
+            qtiter += 1
+            
 
     def closeEvent(self, event):
         """Overrides closeEvent so that we throw a Dialogue question whether to exit or not."""
