@@ -3,74 +3,84 @@ import requests
 
 
 class InstrumentManager:
-    def __init__(self, driver, instrument_resource):
-        self._initialize_driver(driver)
-        self._rm, self._instrument = self._initialize_resource_manager(instrument_resource)
+    def __init__(self, name, connection):
+        self._name = name
 
-        self._name = self._driver['general_settings']['name']
+        self._get_driver()
+        self._initialize_instrument(connection)
+
+        # TODO: add check for visa instrument
         self._initialize_visa_settings()
+
+        if "ASLR" in self._driver["instrument_interface"]["interface"]:
+            self._set_serial_values()        
+
+        # checks if model is correct, throws error if not
+        self._check_model()
+
         self._startup()
 
-    '''Communicates with instrument server to get driver for instrument'''
-    def _initialize_driver(self, driver):
+    def _get_driver(self):
+        """Communicates with instrument server to get driver for instrument"""
         # implementation will likely change
-        url = r'http://localhost:5000/driverParser/'
-        response = requests.get(url, data={'driverPath': driver})
+        url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
+        response = requests.get(url, params={'cute_name': self._name})
 
         if 300 > response.status_code >= 200:
             self._driver = dict(response.json())
         else:
             response.raise_for_status()
 
-    '''Initializes PyVISA resource if a PyVISA resource string was given at construction'''
-    def _initialize_resource_manager(self, instrument_resource):
+    def _initialize_instrument(self, connection):
+        """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
         # string passed through in VISA form
-        if isinstance(instrument_resource, str):
-            resource_manager = ResourceManager()
-            instrument = resource_manager.open_resource(instrument_resource)
+        if isinstance(connection, str):
+            self._rm = ResourceManager()
+            self._instrument = self._rm.open_resource(connection)
 
-        # below will likely change
+        # TODO: allow for user defined instrument class
         else:
-            resource_manager = None
-            instrument = instrument_resource
+            raise NotImplementedError("At this time, the connection string must be provided")
 
-        return resource_manager, instrument
+    def _check_model(self):
+        """Queries instrument for model ID and compares to models listed in driver
+            Raises:
+                ValueError --- if no model listed in driver appears in queried model
+        """
+        instrID = self.ask(self._driver['model_and_options']['model_cmd'])
 
-    '''Initializes PyVISA instrument using data in VISA Settings'''
+        for model in self._driver['model_and_options']['models']:
+            if model in instrID:
+                return
+
+        raise ValueError(f"No model listed in ['Models and options'] match the instruments model: '{instrID}'")
+
     def _initialize_visa_settings(self):
+        """Initializes instrument settings using data in driver['VISA settings']"""
         # timeout in ms
         self._instrument.timeout = self._driver['visa']['timeout'] * 1000
-        self._instrument.term_char = self._driver['visa']['term_char']
+        self._instrument.term_chars = self._driver['visa']['term_char']
         self._instrument.send_end = self._driver['visa']['send_end_on_write']
 
         # used to determine if errors should be read after every read
         self._query_errors = self._driver['visa']['query_instr_errors']
 
-    '''Sets Instrument values for serial instruments'''
     def _set_serial_values(self):
+        """Sets Instrument values for serial instruments"""
         self._instrument.baud_rate = self._driver['visa']['baud_rate']
         self._instrument.data_bits = self._driver['visa']['data_bits']
         self._instrument.stop_bits = self._driver['visa']['stop_bits']
         self._instrument.parity = self._driver['visa']['parity'].replace(' ', '_').lower()
 
-    '''Set's default value for given quantity'''
-    def _set_default_value(self, quantity):
-        if self.quantities[quantity]['def_value']:
-            self[quantity] = self.quantities[quantity]['def_value']
-
     def _startup(self):
-        # Check models supported by driver
-        if self._driver['model_and_options']['check_model']:
-            model = self.model
-            # TODO: Check if model matches given one in driver
-
-        for quantity in self.quantities.keys():
-            self._set_default_value(quantity)
-
+        """Sends relavent start up commands to instrument"""
         self._instrument.write(self._driver['visa']['init'])
 
-    '''Closes instrument and PyVISA resource. Should be called when done using InstrumentManager'''
+        for quantity in self.quantities.keys():
+            self.set_default_value(quantity)
+
     def close(self):
+        """Sends final command to instrument if defined in driver and closes instrument and related resources"""
         # send final command
         if self._driver['visa']['final']:
             self.write(self._driver['visa']['final'])
@@ -80,7 +90,13 @@ class InstrumentManager:
         # close resource manager
         self._rm.close()
 
-    def ask(self, msg):
+    def ask(self, msg: str) -> str:
+        """Queries instrument
+        Parameters:
+            msg -- message to be written to instrument
+        Returns:
+            string result from instrument
+        """
         self._instrument.write(msg)
         return self._instrument.read()
 
@@ -89,9 +105,10 @@ class InstrumentManager:
             self._instrument.write(msg)
 
     def read(self):
+        msg = self._instrument.read()
         if self._query_errors:
-            return self._instrument.read()
-        return self._instrument.read()
+            msg += self._instrument.read()
+        return msg
 
     def read_values(self, format):
         return self._instrument.read_values(format)
@@ -111,32 +128,69 @@ class InstrumentManager:
 
     @property
     def name(self):
-        return self._name
+        return self._driver['general_settings']['name']
 
     @property
-    def model(self):
-        return self.ask(self._driver['model_and_options']['model_cmd'])
+    def quantities(self) -> dict:
+        """Gets dictionary of all quantities, their values, settings, and options"""
+        quantities = dict(self._driver['quantities'])
+
+        for quantity in quantities.keys():
+            quantities[quantity]['value'] = self.get_value(quantity)
+
+        return quantities
 
     @property
-    def options(self):
-        return self.ask(self._driver['model_and_options']['option_cmd'])
+    def quantity_names(self) -> list[str]:
+        """Gets list of all quantity names"""
+        return list(self._driver['quantities'].keys())
 
     @property
-    def quantities(self):
-        return self._driver['quantities']
+    def timeout(self) -> float:
+        """Instrument timeout in seconds"""
+        return self._instrument.timeout / 1000.00
 
-    @property
-    def timeout(self):
-        return self._instrument.timeout
+    @timeout.setter
+    def timeout(self, value):
+        """Sets instrument timeout to value in seconds"""
+        self._instrument.timeout = value * 1000
 
     @property
     def delay(self):
+        """Instrument delay in seconds"""
         return self._instrument.delay
 
+    @delay.setter
+    def delay(selfself, value):
+        """Sets instrument delay to value
+        Parameters:
+            value -- seconds
+        """
+        self._instrument.delay = value
+
     def get_value(self, quantity):
-        return self.ask(self.quantities[quantity]['get_cmd'])
+        """Gets value for given quantity
+        Parameters:
+            quantity -- Quantity name as provided in instrument driver
+        """
+        return self.ask(self._driver['quantities'][quantity]['get_cmd'])
+
+    def set_default_value(self, quantity):
+        """Sets default value for given quantity
+        Parameters:
+            quantity -- Quantity name as provided in instrument driver
+        """
+        if self.quantities[quantity]['def_value']:
+            self[quantity] = self.quantities[quantity]['def_value']
 
     def set_value(self, quantity, value):
+        """Sets quantity to given value after performing checks on value
+        Parameters:
+            quantity -- Quantity name as provided in instrument driver
+            value -- value to set quantity
+        Raises:
+            ValueError -- If value is outside of quantity's limits or predefined string values
+        """
         lower_lim = self.quantities[quantity]['low_lim']
         upper_lim = self.quantities[quantity]['high_lim']
 
@@ -148,9 +202,9 @@ class InstrumentManager:
 
         # change boolean values to driver specified boolean values
         if self.quantities[quantity]['data_type'].upper() == 'BOOLEAN':
-            if value.upper() == "TRUE":
+            if str(value).upper() == "TRUE":
                 value = self._driver['visa']['str_true']
-            elif value.upper() == "FALSE":
+            elif str(value).upper() == "FALSE":
                 value = self._driver['visa']['str_false']
 
         # add the value to the command and write to instrument
@@ -179,4 +233,7 @@ class InstrumentManager:
         self.set_value(quantity, value)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __del__(self):
         self.close()

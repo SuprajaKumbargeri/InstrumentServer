@@ -1,3 +1,13 @@
+-- contains instrument and connection details
+CREATE TABLE IF NOT EXISTS instruments (
+	cute_name TEXT PRIMARY KEY NOT NULL,
+	manufacturer TEXT NOT NULL,
+	interface TEXT NOT NULL, 
+	ip_address TEXT,
+	serial BOOLEAN,
+	visa BOOLEAN
+);
+
 -- Custom types for general_settings table
 DO $$ BEGIN
     CREATE TYPE drivertype AS ENUM ('Auto', 'None', 'CR', 'LF', 'CR+LF');
@@ -7,7 +17,7 @@ END $$;
 
 -- contains basic info of the instrument driver
 CREATE TABLE IF NOT EXISTS general_settings (
-	id SERIAL PRIMARY KEY NOT NULL,
+	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name),
 	name TEXT NOT NULL, 
 	ini_path TEXT NOT NULL,
 	driver_path TEXT,
@@ -19,7 +29,7 @@ CREATE TABLE IF NOT EXISTS general_settings (
 );
 
 CREATE TABLE IF NOT EXISTS model_and_options (
-	id INTEGER PRIMARY KEY REFERENCES general_settings(id),
+	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name),
 	check_model BOOLEAN DEFAULT false,
 	model_cmd TEXT DEFAULT '*IDN?',
 	models TEXT[],
@@ -48,7 +58,7 @@ END $$;
 
 -- VISA settings of driver
 CREATE TABLE IF NOT EXISTS visa (
-	id INTEGER PRIMARY KEY REFERENCES general_settings(id),
+	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name),
 	use_visa BOOLEAN,
 	reset BOOLEAN DEFAULT false,
 	query_instr_errors BOOLEAN,
@@ -98,7 +108,7 @@ END $$;
 	Section name is stored as label unless the driver specifies a label for that section
 */
 CREATE TABLE IF NOT EXISTS quantities (
-	id INTEGER REFERENCES general_settings(id),
+	cute_name TEXT REFERENCES instruments(cute_name),
 	label TEXT,
 	data_type datatype,
 	unit TEXT,
@@ -127,7 +137,7 @@ CREATE TABLE IF NOT EXISTS quantities (
 	show_in_measurement_dlg BOOLEAN,
 	set_cmd TEXT,
 	get_cmd TEXT DEFAULT 'set_cmd?',
-	PRIMARY KEY (id, label)
+	PRIMARY KEY (cute_name, label)
 );
 
 -- ALTER TABLE quantities RENAME COLUMN "groupname" TO "group";

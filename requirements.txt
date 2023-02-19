@@ -13,3 +13,4 @@ pandas==1.5.1
 psycopg2==2.9.5
 wheel==0.37.1
 picoscope==0.7.19
+PyQt6==6.4.1
