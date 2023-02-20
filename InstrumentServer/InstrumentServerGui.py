@@ -1,5 +1,4 @@
 import sys
-from flask import (Flask)
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
@@ -16,13 +15,17 @@ class InstrumentServerWindow(QMainWindow):
 
     def __init__(self, flask_app):
         print('Initializing Instrument Server GUI...')
+
+        # Convenience flag preventing VISA/DB aspects from being automatically called at startup
+        self.dev_machine = False
+
         super(InstrumentServerWindow, self).__init__()
 
         self.currently_selected_instrument = None
 
         self.flask_app = flask_app
 
-        self.greenIcon = QIcon("./Icons/greenIcon.png") 
+        self.greenIcon = QIcon("./Icons/greenIcon.png")
         self.redIcon = QIcon("./Icons/redIcon.png")
 
         # The "top most" layout is vertical box layout (top -> bottom)
@@ -48,7 +51,8 @@ class InstrumentServerWindow(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
-        self.getInstrumentsWeKnowAbout()
+        if not self.dev_machine:
+            self.get_known_instruments()
 
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
@@ -61,6 +65,10 @@ class InstrumentServerWindow(QMainWindow):
 
         # Set the central widget
         self.setCentralWidget(self.main_widget)
+
+        # Setup Experiment GUI
+        from GUI.experimentWindowGui import ExperimentWindowGui
+        self.experiment_window_gui = ExperimentWindowGui(self)
 
         print('Done initializing Instrument Server GUI')
 
@@ -137,12 +145,16 @@ class InstrumentServerWindow(QMainWindow):
         status_widget = QWidget()
         status_layout = QHBoxLayout()
 
+        create_experiment_btn = QPushButton("Create Experiment")
+        create_experiment_btn.clicked.connect(self.create_experiment_clicked)
+        status_layout.setAlignment(create_experiment_btn, Qt.AlignmentFlag.AlignCenter)
+        status_layout.addWidget(create_experiment_btn)
+
         instrument_server_status_lbl = QLabel("Instrument Server Is Running")
         status_layout.addWidget(instrument_server_status_lbl)
         status_layout.setAlignment(instrument_server_status_lbl, Qt.AlignmentFlag.AlignRight)
 
         status_widget.setLayout(status_layout)
-
         self.main_layout.addWidget(status_widget)
 
     # Defines exit behavior
@@ -171,11 +183,18 @@ class InstrumentServerWindow(QMainWindow):
     def settings_btn_clicked(self):
         print('Settings was clicked')
 
+    def create_experiment_clicked(self):
+        print('Create Experiment was clicked')
+        self.show_experiment_window()
+
     def add_btn_clicked(self):
         print('Add was clicked')
 
     def remove_btn_clicked(self):
         print('Remove was clicked')
+
+    def show_experiment_window(self):
+        self.experiment_window_gui.show()
 
     def connect_btn_clicked(self):
         print('Connect was clicked')
@@ -216,22 +235,20 @@ class InstrumentServerWindow(QMainWindow):
                                       "Are you sure you want to exit? This will close all instruments.")
 
         if button == QMessageBox.StandardButton.Yes:
-           self.hide()
+            self.hide()
 
     def add_instrument_to_list(self, model: str, cute_name: str, address: str) -> None:
         newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, address])
         newItem.setIcon(0, self.redIcon)
 
-
     def clear_instrument_list(self):
-        '''
+        """
         Clears the Instrument List 
-        '''
+        """
         print('Clearing Instrument List...')
         self.instrument_tree.clear()
 
-
-    def getInstrumentsWeKnowAbout(self):
+    def get_known_instruments(self):
 
         self.clear_instrument_list()
         connection = None
@@ -266,8 +283,6 @@ class InstrumentServerWindow(QMainWindow):
             finally:
                 # Make sure we always close the connection
                 db.close_db(connection)
-
-
 
 
 if __name__ == '__main__':
