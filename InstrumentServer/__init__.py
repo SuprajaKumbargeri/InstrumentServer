@@ -48,11 +48,11 @@ def create_app(test_config=None):
     from . InstrumentDetection import instrument_detection_service as ids
     instrumentDetectionServ = ids.InstrumentDetectionService(my_logger)
 
-    # Delegate Instrument dectection to a separate thread
-    detectInstTh = None
+    # Delegate Instrument detection to a separate thread
+    detect_inst_thread = None
     if not dev_machine:
-        threading.Thread(target=instrumentDetectionServ.detectInstruments())
-        detectInstTh.start()
+        detect_inst_thread = threading.Thread(target=instrumentDetectionServ.detectInstruments())
+        detect_inst_thread.start()
 
     # create and configure instrument server
     # __name__ is the name of the current Python module
@@ -94,7 +94,7 @@ def create_app(test_config=None):
 
     # Wait for Instrument detection to finish
     if not dev_machine:
-        detectInstTh.join()
+        detect_inst_thread.join()
 
     from . InstrumentCom import instrument_com
     app.register_blueprint(instrument_com.bp)
