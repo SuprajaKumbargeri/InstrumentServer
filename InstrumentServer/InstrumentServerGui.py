@@ -1,5 +1,4 @@
 import sys
-from flask import (Flask)
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
@@ -7,6 +6,7 @@ import requests
 
 from . import db
 from . import instrument_connection_service
+from GUI.experimentWindowGui import ExperimentWindowGui
 
 
 ###################################################################################
@@ -17,13 +17,17 @@ class InstrumentServerWindow(QMainWindow):
 
     def __init__(self, flask_app):
         print('Initializing Instrument Server GUI...')
+
+        # Convenience flag preventing VISA/DB aspects from being automatically called at startup
+        self.dev_machine = False
+
         super(InstrumentServerWindow, self).__init__()
 
         self.currently_selected_instrument = None
 
         self.flask_app = flask_app
 
-        self.greenIcon = QIcon("./Icons/greenIcon.png") 
+        self.greenIcon = QIcon("./Icons/greenIcon.png")
         self.redIcon = QIcon("./Icons/redIcon.png")
 
         # The "top most" layout is vertical box layout (top -> bottom)
@@ -40,7 +44,7 @@ class InstrumentServerWindow(QMainWindow):
         # Since we need multiple columns, we cannot use QListWidget. Instead, we can use QTreeWidget
         # since it support columns.
         self.instrument_tree = QTreeWidget(self)
-        self.instrument_tree.setHeaderLabels(['Instrument Model', 'Cute Name', 'Interface', 'IP Address'])
+        self.instrument_tree.setHeaderLabels(['Instrument Model', 'Cute Name', 'Address'])
 
         # Allow only one selection at a time -> SingleSelection
         self.instrument_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -49,8 +53,8 @@ class InstrumentServerWindow(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
-        # Some sample data (remove)
-        self.getInstrumentsWeKnowAbout()
+        if not self.dev_machine:
+            self.get_known_instruments()
 
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
@@ -64,6 +68,9 @@ class InstrumentServerWindow(QMainWindow):
         # Set the central widget
         self.setCentralWidget(self.main_widget)
 
+        # Setup Experiment GUI
+        self.experiment_window_gui = ExperimentWindowGui(self)
+
         self._ics = instrument_connection_service.InstrumentConnectionService()
 
         print('Done initializing Instrument Server GUI')
@@ -76,6 +83,8 @@ class InstrumentServerWindow(QMainWindow):
         menu.addSeparator()
         file_menu = menu.addMenu("&File")
         file_menu.addAction(exit_action)
+
+        edit_menu = menu.addMenu("&Edit")
 
         help_menu = menu.addMenu("&Help")
 
@@ -139,12 +148,16 @@ class InstrumentServerWindow(QMainWindow):
         status_widget = QWidget()
         status_layout = QHBoxLayout()
 
+        create_experiment_btn = QPushButton("Create Experiment")
+        create_experiment_btn.clicked.connect(self.create_experiment_clicked)
+        status_layout.setAlignment(create_experiment_btn, Qt.AlignmentFlag.AlignCenter)
+        status_layout.addWidget(create_experiment_btn)
+
         instrument_server_status_lbl = QLabel("Instrument Server Is Running")
         status_layout.addWidget(instrument_server_status_lbl)
         status_layout.setAlignment(instrument_server_status_lbl, Qt.AlignmentFlag.AlignRight)
 
         status_widget.setLayout(status_layout)
-
         self.main_layout.addWidget(status_widget)
 
     # Defines exit behavior
@@ -173,14 +186,26 @@ class InstrumentServerWindow(QMainWindow):
     def settings_btn_clicked(self):
         print('Settings was clicked')
 
+    def create_experiment_clicked(self):
+        print('Create Experiment was clicked')
+        self.show_experiment_window()
+
     def add_btn_clicked(self):
         print('Add was clicked')
 
     def remove_btn_clicked(self):
         print('Remove was clicked')
 
+    def show_experiment_window(self):
+        self.experiment_window_gui.show()
+
     def connect_btn_clicked(self):
-        print(f'Attmpting to connect to {self.currently_selected_instrument}')
+        print('Connect was clicked')
+        if not self.currently_selected_instrument:
+            QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
+            return
+
+
         try:
             self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
             current_item = self.instrument_tree.currentItem()
@@ -232,23 +257,21 @@ class InstrumentServerWindow(QMainWindow):
             
         # Accept shutdown and call endpoint
         event.accept()
-        url = r'http://localhost:5000/shutDown'
+        url = r'http://127.0.0.1:5000/shutDown'
         requests.get(url)
 
-    def add_instrument_to_list(self, model: str, cute_name: str, interface: str, address: str):
-        newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, interface, address])
+    def add_instrument_to_list(self, model: str, cute_name: str, address: str) -> None:
+        newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, address])
         newItem.setIcon(0, self.redIcon)
 
-
     def clear_instrument_list(self):
-        '''
+        """
         Clears the Instrument List 
-        '''
+        """
         print('Clearing Instrument List...')
         self.instrument_tree.clear()
 
-
-    def getInstrumentsWeKnowAbout(self):
+    def get_known_instruments(self):
 
         self.clear_instrument_list()
         connection = None
@@ -263,16 +286,26 @@ class InstrumentServerWindow(QMainWindow):
                     result = cursor.fetchall()
 
                     for instrument in result:
-                        ip_add = '-' if instrument[3] is None else  instrument[3]
-                        self.add_instrument_to_list(instrument[1], instrument[0], instrument[2], ip_add)
+                        cute_name = instrument[0]
+                        manufacturer = instrument[1]
+                        interface = instrument[2]
+                        ip_address = instrument[3]
+                        serial = instrument[4]
+                        via = instrument[5]
+
+                        print(ip_address)
+
+                        # If an IP Address was provided, use it for Address column, otherwise use the Interface
+                        self.add_instrument_to_list(manufacturer,
+                                                    cute_name,
+                                                    (ip_address if ip_address != None else interface))
 
             except Exception as ex:
                 print('There was a problem getting all known instruments {}'.format(ex))
 
             finally:
+                # Make sure we always close the connection
                 db.close_db(connection)
-
-
 
 
 if __name__ == '__main__':

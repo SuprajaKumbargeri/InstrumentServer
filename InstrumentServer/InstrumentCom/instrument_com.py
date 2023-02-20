@@ -15,12 +15,12 @@ Create 'instrumentCom' Blueprint
 bp = Blueprint('instrumentCom', __name__,  url_prefix='/instrumentCom')
 
 
-def initialize(logger: logging.Logger, visa_inst_list: InstrumentResource , pico_int_list: InstrumentResource):
+def initialize(logger: logging.Logger):
     global my_logger 
     my_logger = logger
 
     global inst_com_serv 
-    inst_com_serv = ics.InstrumentComService(my_logger, visa_inst_list=visa_inst_list, pico_int_list=pico_int_list)
+    inst_com_serv = ics.InstrumentComService(my_logger)
 
 
 @bp.route('/')
