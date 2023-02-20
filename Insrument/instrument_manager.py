@@ -72,11 +72,19 @@ class InstrumentManager:
         self._instrument.stop_bits = self._driver['visa']['stop_bits']
         self._instrument.parity = self._driver['visa']['parity'].replace(' ', '_').lower()
 
+    '''Set's default value for given quantity'''
+    def _set_default_value(self, quantity):
+        if self._driver['quantities'][quantity]['def_value']:
+            self[quantity] = self._driver['quantities'][quantity]['def_value']
+
     def _startup(self):
         """Sends relavent start up commands to instrument"""
         self._instrument.write(self._driver['visa']['init'])
 
-        for quantity in self.quantities.keys():
+        _quantities = list(self._driver['quantities'].keys())
+
+        for quantity in _quantities:
+            print(quantity)
             self.set_default_value(quantity)
 
     def close(self):
@@ -131,14 +139,19 @@ class InstrumentManager:
         return self._driver['general_settings']['name']
 
     @property
+    def quantity_values(self) -> dict:
+        """Gets dictionary of all quantities with their values, settings, and options"""
+        quants = dict(self._driver['quantities'])
+
+        for quantity in quants.keys():
+            quants[quantity]['value'] = self.get_value(quantity)
+
+        return quants
+    
+    @property
     def quantities(self) -> dict:
-        """Gets dictionary of all quantities, their values, settings, and options"""
-        quantities = dict(self._driver['quantities'])
-
-        for quantity in quantities.keys():
-            quantities[quantity]['value'] = self.get_value(quantity)
-
-        return quantities
+        """Gets dictionary of all quantities without their values"""
+        return dict(self._driver['quantities'])
 
     @property
     def quantity_names(self) -> list[str]:
@@ -180,8 +193,9 @@ class InstrumentManager:
         Parameters:
             quantity -- Quantity name as provided in instrument driver
         """
-        if self.quantities[quantity]['def_value']:
-            self[quantity] = self.quantities[quantity]['def_value']
+        print("Trying to set value")
+        if self._driver['quantities'][quantity]['def_value']:
+            self.set_value(quantity, self._driver['quantities'][quantity]['def_value'])
 
     def set_value(self, quantity, value):
         """Sets quantity to given value after performing checks on value
@@ -191,24 +205,12 @@ class InstrumentManager:
         Raises:
             ValueError -- If value is outside of quantity's limits or predefined string values
         """
-        lower_lim = self.quantities[quantity]['low_lim']
-        upper_lim = self.quantities[quantity]['high_lim']
+        self._check_limits(quantity, value)
 
-        # check limits
-        if not lower_lim == '-INF' and value < float(lower_lim):
-            raise ValueError(f"{value} is lower than {quantity}'s lower limit of {lower_lim}.")
-        if not upper_lim == '+INF' and value < float(upper_lim):
-            raise ValueError(f"{value} is higher than {quantity}'s upper limit of {upper_lim}.")
-
-        # change boolean values to driver specified boolean values
-        if self.quantities[quantity]['data_type'].upper() == 'BOOLEAN':
-            if str(value).upper() == "TRUE":
-                value = self._driver['visa']['str_true']
-            elif str(value).upper() == "FALSE":
-                value = self._driver['visa']['str_false']
+        value = self._convert_value(quantity, value)
 
         # add the value to the command and write to instrument
-        cmd = self.quantities[quantity]['set_cmd']
+        cmd = self._driver['quantities'][quantity]['set_cmd']
         if "<*>" in cmd:
             cmd = cmd.replace("<*>", str(value))
         else:
@@ -216,15 +218,68 @@ class InstrumentManager:
 
         self._instrument.write(cmd)
 
-    def get_state(self, quantity):
-        if self.quantities[quantity]['state_quant']:
-            return self.quantities[quantity]['state_quant']
-        return None
+    def _check_limits(self, quantity, value):
+        """Checks value against the limits or state values (for a combo) of a quantity
+            Parameters:
+                quantity -- qunatity whose limit to compare
+                value -- value to compare against
+            Raises:
+                ValueError if value is out of range of limit or not in one of the combos states
+        """
+        lower_lim = self._driver['quantities'][quantity]['low_lim']
+        upper_lim = self._driver['quantities'][quantity]['high_lim']
 
-    def set_state(self, quantity, state):
-        if state not in self.quantities[quantity]['state_values']:
-            raise ValueError(f'{state} is not a valid state for {quantity}.')
-        self.quantities[quantity]['state_quant'] = state
+        # check limits
+        if not lower_lim == '-INF' and value < float(lower_lim):
+            raise ValueError(f"{value} is lower than {quantity}'s lower limit of {lower_lim}.")
+        if not upper_lim == '+INF' and value < float(upper_lim):
+            raise ValueError(f"{value} is higher than {quantity}'s upper limit of {upper_lim}.")
+        
+        # check for valid states for Combos
+        if self._driver['quantities'][quantity]['data_type'].upper() == 'COMBO':
+            if self._driver['quantities'][quantity]['combo_cmd']:
+                valid_states = list(self._driver['quantities'][quantity]['combo_cmd'].keys())
+                valid_cmds = list(self._driver['quantities'][quantity]['combo_cmd'].values())
+            else:
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
+
+            if value not in (valid_states or valid_cmds):
+                raise ValueError(f"{value} is not a recognized state of {quantity}'s states. Valid states are {valid_states}.")
+            
+    def _convert_value(self, quantity, value):
+        """Converts given value to pre-defined value in driver or returns the given value is N/A to convert
+            Parameters:
+                quantity -- quantity that holds the pre-defined value
+                value -- value that needs converting
+            Returns: 
+                Converted value
+            Raises:
+                ValueError if quantity is a boolean but a boolean value is not provided
+        """
+        quantity_dict = self._driver['quantities'][quantity]
+
+        # change boolean values to driver specified boolean values
+        # Checks allow for user to pass in TRUE, FALSE, or driver-defined values
+        if quantity_dict['data_type'].upper() == 'BOOLEAN':
+            if value.upper() == ("TRUE" or self._driver['visa']['str_true'].upper()):
+                return self._driver['visa']['str_true']
+            elif value.upper() == ("FALSE" or self._driver['visa']['str_false'].upper()):
+                return self._driver['visa']['str_false']
+            else:
+                raise ValueError(f"{value} is not a valid boolean value.")
+            
+        elif quantity_dict['data_type'].upper() == 'COMBO':
+            # combo quantity contains no states or commands
+            if not quantity_dict['combo_cmd']:
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")\
+                
+            # if user provided name of the state, convert, else return given value as it is already a valid value for the commandcommand
+            if value in quantity_dict['combo_cmd'].keys():
+                return quantity_dict['combo_cmd'][value]
+        
+        else:
+            return value
+
 
     def __getitem__(self, quantity):
         return self.get_value(quantity)
