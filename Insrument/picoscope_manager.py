@@ -5,23 +5,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class PicoscopeManager:
-    def __init__(self, driver):
-        self._initialize_driver(driver)
-        self._name = self._driver['general_settings']['name']
+    def __init__(self, name, driver):
+        self._name = name
+        self._driver = driver
         self._ps = self._initialize_picoscope()
         # self._startup()
 
     '''Communicates with instrument server to get driver for instrument'''
 
-    def _initialize_driver(self, driver):
-        # implementation will likely change
-        url = r'http://localhost:5000/driverParser/'
-        response = requests.get(url, data={'driverPath': driver})
-
-        if 300 > response.status_code >= 200:
-            self._driver = dict(response.json())
-        else:
-            response.raise_for_status()
+    # def _initialize_driver(self, driver):
+    #     # implementation will likely change
+    #     url = r'http://localhost:5000/driverParser/'
+    #     response = requests.get(url, data={'driverPath': driver})
+    #
+    #     if 300 > response.status_code >= 200:
+    #         self._driver = dict(response.json())
+    #     else:
+    #         response.raise_for_status()
 
     '''Initializes Picoscope'''
 
@@ -76,7 +76,22 @@ class PicoscopeManager:
 
     def get_value(self, quantity):
         # instead of getting value from quantities dict, get from db
-        return self.quantities[quantity]['def_value']  # self.ask(self.quantities[quantity]['get_cmd'])
+        # if db doesn't have the value, use def_value
+        # otherwise, get value from the db
+        url = r'http://localhost:5000/instrumentDB/getLatestValue'
+        response = requests.get(url, params={'cute_name': self._name, 'label': quantity})
+        if 300 > response.status_code <= 200:
+            # success
+            pass
+        else:
+            response.raise_for_status()
+
+        value = response.json()
+        if not value:
+            self.quantities[quantity]['def_value']
+        else:
+            return value
+        # return self.quantities[quantity]['def_value']  # self.ask(self.quantities[quantity]['get_cmd'])
 
     def set_value(self, quantity, value):
         lower_lim = self.quantities[quantity]['low_lim']

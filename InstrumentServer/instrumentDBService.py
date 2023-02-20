@@ -244,4 +244,16 @@ def deleteInstrument(connection: object, cute_name: str):
             delete_instrument_query = "DELETE FROM {table_name} WHERE cute_name = '{cute_name}';".format(table_name = table, cute_name = cute_name)
             cursor.execute(delete_instrument_query)
             connection.commit()
-      
+
+
+def getLatestValue(connection: object, instrument_name: str, label: str) -> str:
+
+    table = 'quantities'
+    latest_value = None
+    with connection.cursor() as cursor:
+        latest_value_query = "SELECT {column} FROM {table_name} WHERE cute_name = '{cute_name}' and label = '{label}';"\
+            .format(column='latest_value', table_name=table, cute_name=instrument_name, label=label)
+        cursor.execute(latest_value_query)
+        latest_value = cursor.fetchone()
+
+    return latest_value
