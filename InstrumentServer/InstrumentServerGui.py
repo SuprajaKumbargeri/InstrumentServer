@@ -216,21 +216,7 @@ class InstrumentServerWindow(QMainWindow):
             QMessageBox.critical(self, 'ERROR', f'Could not connect to instrument: {e}')
 
     def connect_all_btn_clicked(self):
-        failed_connections = []
-
-        qtiter = QTreeWidgetItemIterator(self.instrument_tree)
-        while qtiter.value():
-            current_item = qtiter.value()
-            
-            try:
-                self._ics.connect_to_visa_instrument(current_item.text(1))
-                current_item.setIcon(0, self.greenIcon)
-            except Exception as e:
-                failed_connections.append(e)
-        
-        if len(failed_connections) > 0:
-            QMessageBox.critical(self, 'ERROR', f'Could not connect to instruments: {failed_connections}')
-
+        print('Connect All was clicked')
 
     def close_btn_clicked(self):
         self._ics.disconnect_instrument(self.currently_selected_instrument)
@@ -247,6 +233,7 @@ class InstrumentServerWindow(QMainWindow):
             current_item = qtiter.value()
             current_item.setIcon(0, self.redIcon)
             qtiter += 1
+            
 
     def closeEvent(self, event):
         """Overrides closeEvent so that we throw a Dialogue question whether to exit or not."""
