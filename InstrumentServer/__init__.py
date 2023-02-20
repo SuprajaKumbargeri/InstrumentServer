@@ -94,7 +94,7 @@ def create_app(test_config=None):
 
     from . InstrumentCom import instrument_com
     app.register_blueprint(instrument_com.bp)
-    instrument_com.initialize(my_logger, instrumentDetectionServ.get_visa_instruments(), instrumentDetectionServ.get_pico_instruments())
+    instrument_com.initialize(my_logger)
 
     # Register instrument database related blueprint
     from . import instrumentDB
