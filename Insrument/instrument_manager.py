@@ -23,7 +23,7 @@ class InstrumentManager:
     def _get_driver(self):
         """Communicates with instrument server to get driver for instrument"""
         # implementation will likely change
-        url = r'http://localhost:5000/instrumentDB/getInstrument'
+        url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
         response = requests.get(url, params={'cute_name': self._name})
 
         if 300 > response.status_code >= 200:

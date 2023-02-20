@@ -7,9 +7,7 @@ import os
 import logging
 import datetime
 import threading
-from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
-from PyQt6.QtGui import *
 
 from flask import (Flask, jsonify, render_template)
 
@@ -37,6 +35,8 @@ def start_gui(flask_app):
     mainWin.show()
     app.exec()
 
+# Convenience flag preventing VISA/DB aspects from being automatically called at startup
+dev_machine = False
 
 '''
 Create the Flask Application
@@ -49,8 +49,10 @@ def create_app(test_config=None):
     instrumentDetectionServ = ids.InstrumentDetectionService(my_logger)
 
     # Delegate Instrument dectection to a separate thread
-    detectInstTh = threading.Thread(target=instrumentDetectionServ.detectInstruments())
-    detectInstTh.start()
+    detectInstTh = None
+    if not dev_machine:
+        threading.Thread(target=instrumentDetectionServ.detectInstruments())
+        detectInstTh.start()
 
     # create and configure instrument server
     # __name__ is the name of the current Python module
@@ -76,9 +78,10 @@ def create_app(test_config=None):
         pass
     
     # Register database application
-    from . import db
-    db.setLogger(my_logger)
-    db.init_db(app)
+    if not dev_machine:
+        from . import db
+        db.setLogger(my_logger)
+        db.init_db(app)
 
     # Register Server Status blueprint
     from . import serverStatus
@@ -89,12 +92,13 @@ def create_app(test_config=None):
     app.register_blueprint(driverParser.bp)
     driverParser.setLogger(my_logger)
 
-    # Wait for Instrument dectection to finish 
-    detectInstTh.join()
+    # Wait for Instrument detection to finish
+    if not dev_machine:
+        detectInstTh.join()
 
     from . InstrumentCom import instrument_com
     app.register_blueprint(instrument_com.bp)
-    instrument_com.initialize(my_logger, instrumentDetectionServ.get_visa_instruments(), instrumentDetectionServ.get_pico_instruments())
+    instrument_com.initialize(my_logger)
 
     # Register instrument database related blueprint
     from . import instrumentDB

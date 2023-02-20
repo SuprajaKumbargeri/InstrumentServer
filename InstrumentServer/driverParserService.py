@@ -428,7 +428,7 @@ def getQuantities(settings: dict) -> dict:
             'show_in_measurement_dlg': show_in_measurement_dlg,
             'set_cmd': set_cmd,
             'get_cmd': get_cmd,
-            #'combo_cmd': combo_cmd
+            'combo_cmd': combo_cmd
         }
     
     return quantities
