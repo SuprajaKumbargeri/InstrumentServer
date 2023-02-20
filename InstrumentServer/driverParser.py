@@ -20,11 +20,13 @@ def setLogger(logger: logging.Logger):
 
 
 '''Parses driver from a given local path. Returns dictionary of the driver contents'''
-@bp.route('/', methods = ['POST'])
+@bp.route('/')
 def parseDriver():
     try:
         global ini_path
-        ini_path = request.get_json()
+        ini_path = request.form['driverPath']
+
+
 
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
@@ -41,10 +43,10 @@ def parseDriver():
 
 
 @bp.route('/addDriver')
-def addDriver():
+def addDriver(ini_path):
     try:
-        global ini_path
-        ini_path = request.form['driverPath']
+        #global ini_path
+        #ini_path = request.form['driverPath']
         
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
@@ -53,6 +55,8 @@ def addDriver():
         quantities = dps.getQuantities({key: value for key, value in config._sections.items()\
                 if key not in ('General settings', 'Model and options', 'VISA settings')})
         return {'general_settings': gen_settings, 'model_and_options': model_options, 'visa': visa_settings, 'quantities': quantities}, 200
+        #return redirect(url_for('instrumentDB.addInstrument', details = json.dumps({'general_settings': gen_settings, 
+        #'model_and_options': model_options, 'visa': visa_settings, 'quantities': quantities})))
 
     except Exception as e:
         my_logger.error(e.args)
