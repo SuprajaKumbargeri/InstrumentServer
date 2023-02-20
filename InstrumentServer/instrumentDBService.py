@@ -235,13 +235,3 @@ def getQuantities(connection: object, instrument_name: str) -> dict:
             quantities[quantity[0]] = {key : value for key, value in zip(column_names, result[0])}
 
     return quantities
-
-def deleteInstrument(connection: object, cute_name: str):
-
-    table_names = ['general_settings', 'model_and_options', 'visa', 'quantities', 'instruments']
-    with connection.cursor() as cursor:
-        for table in table_names:
-            delete_instrument_query = "DELETE FROM {table_name} WHERE cute_name = '{cute_name}';".format(table_name = table, cute_name = cute_name)
-            cursor.execute(delete_instrument_query)
-            connection.commit()
-      
