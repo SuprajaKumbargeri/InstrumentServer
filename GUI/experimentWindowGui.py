@@ -41,13 +41,18 @@ class ExperimentWindowGui(QMainWindow):
         GUI Section on the left
         """
         # The main widget in this section
-        channels_section_main_widget = QWidget()
+        self.channels_group = QGroupBox('Channels')
 
+        # Set the layout for main widget    
         channels_section_main_layout = QVBoxLayout()
 
         # This is that table full of instruments and their values
         channels_table = QTreeWidget()
         channels_table.setHeaderLabels(['Instrument', 'Name/Address', 'Instr. value', 'Phys. value', 'Server'])
+
+        # Allow only one selection at a time -> SingleSelection
+        channels_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
         header = channels_table.header()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
@@ -55,22 +60,25 @@ class ExperimentWindowGui(QMainWindow):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
 
+        channels_table.itemSelectionChanged.connect(self.channels_table_selection_changed)
+
+        """
+        Column Order:
+        [Instrument, Name/Address, Instr. value, Phys. value, Server]
+        """
         # TODO: Remove later (example data)
-        root_example = QTreeWidgetItem(channels_table, ['Rhode&Schwarz SG100', 'gen', '', 'localhost'])
+        root_example = QTreeWidgetItem(channels_table, ['Rhode&Schwarz SG100', 'gen', '','', 'localhost'])
         QTreeWidgetItem(root_example, ['Frequency', '', '5 Ghz'])
         QTreeWidgetItem(root_example, ['Power', '', '-20 dBm'])
         QTreeWidgetItem(root_example, ['Phase', '', '0 rad'])
         QTreeWidgetItem(root_example, ['Mode', '', 'Normal'])
         QTreeWidgetItem(root_example, ['Output', '', 'Off'])
         root_example.setExpanded(True)
-
         channels_section_main_layout.addWidget(channels_table)
-        channels_section_main_widget.setLayout(channels_section_main_layout)
 
         #############################################
         # The section on the bottom that has buttons
         #############################################
-        button_section = QWidget()
         button_section_layout = QHBoxLayout()
 
         show_cfg_btn = QPushButton("Show cfg...")
@@ -93,31 +101,28 @@ class ExperimentWindowGui(QMainWindow):
         button_section_layout.addWidget(remove_btn)
         button_section_layout.setAlignment(remove_btn, Qt.AlignmentFlag.AlignRight)
 
-        # Set the layout for the button section
-        button_section.setLayout(button_section_layout)
-
         # Add button_section to the main layout
-        channels_section_main_layout.addWidget(button_section)
+        channels_section_main_layout.addLayout(button_section_layout)
 
-        self.main_layout.addWidget(channels_section_main_widget, Qt.AlignmentFlag.AlignLeft)
+        self.channels_group.setLayout(channels_section_main_layout)
+        self.main_layout.addWidget(self.channels_group)
 
     def construct_step_sequence_section(self):
         """
         GUI Section on the right
         """
         # The main widget in for this section
-        step_sequence_main_widget = QWidget()
+        self.step_sequence_group = QGroupBox("Step sequence")
 
         # The main layout for this section
         step_sequence_main_layout = QVBoxLayout()
 
-        # Set the layout for the main widget
-        step_sequence_main_widget.setLayout(step_sequence_main_layout)
-
         sample_placeholder_lbl = QLabel("This will be the Step Sequence section")
-        step_sequence_main_layout.addWidget(sample_placeholder_lbl, Qt.AlignmentFlag.AlignRight)
+        step_sequence_main_layout.addWidget(sample_placeholder_lbl)
 
-        self.main_layout.addWidget(step_sequence_main_widget)
+        self.step_sequence_group.setLayout(step_sequence_main_layout)
+        self.main_layout.addWidget(self.step_sequence_group)
+
 
     def construct_experiment_menu_bar(self):
         """
@@ -141,3 +146,6 @@ class ExperimentWindowGui(QMainWindow):
         """
         print('Exiting ExperimentWindowGui...')
         self.close()
+
+    def channels_table_selection_changed(self):
+        pass
