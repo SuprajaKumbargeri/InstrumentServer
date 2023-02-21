@@ -308,6 +308,8 @@ class InstrumentServerWindow(QMainWindow):
                 db.close_db(connection)
 
 
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     mainWin = InstrumentServerWindow()
