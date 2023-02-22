@@ -205,24 +205,50 @@ class InstrumentServerWindow(QMainWindow):
             QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
             return
 
-
         try:
             self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
             current_item = self.instrument_tree.currentItem()
             print(current_item)
             current_item.setIcon(0, self.greenIcon)
 
+        except ValueError as e:
+            QMessageBox.information(self, 'Instrument is already connected.', 'Instrument is already connected.')
+
         except Exception as e:
+            print(e)
             QMessageBox.critical(self, 'ERROR', f'Could not connect to instrument: {e}')
 
     def connect_all_btn_clicked(self):
+        """Attmepts to connect all listed instruments"""
         print('Connect All was clicked')
 
-    def close_btn_clicked(self):
-        self._ics.disconnect_instrument(self.currently_selected_instrument)
+        failed_connections = []
+        
+        # iterate through instrument_tree and connect to instrument
+        qtiter = QTreeWidgetItemIterator(self.instrument_tree)
+        while qtiter.value():
+            try:
+                current_item = qtiter.value()
+                self._ics.connect_to_visa_instrument(current_item.text(1))
+                current_item.setIcon(0, self.greenIcon)
+            except:
+                failed_connections.append(current_item.text(1))
+            qtiter += 1
 
-        current_item = self.instrument_tree.currentItem()
-        current_item.setIcon(0, self.redIcon)
+        if len(failed_connections) > 0:
+            QMessageBox.critical(self, 'ERROR', f'Could not connect to the following instrument: {failed_connections}.')
+
+    def close_btn_clicked(self):
+        """Closes connection to selected instrument"""
+        try:
+            self._ics.disconnect_instrument(self.currently_selected_instrument)
+
+            current_item = self.instrument_tree.currentItem()
+            current_item.setIcon(0, self.redIcon)
+        except KeyError:
+            QMessageBox.information(self, 'Instrument is not currently connected.', 'Instrument is not currently connected.')
+        except Exception as e:
+            QMessageBox.critical(self, 'Unkown Error', e)
 
     def close_all_btn_clicked(self):
         print('Close All was clicked')
