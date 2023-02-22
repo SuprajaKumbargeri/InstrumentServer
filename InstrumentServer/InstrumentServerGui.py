@@ -7,6 +7,7 @@ import requests
 from . import db
 from . import instrument_connection_service
 from GUI.experimentWindowGui import ExperimentWindowGui
+from GUI.quantity_manager_gui import QuantityManagerGUI
 
 
 ###################################################################################
@@ -59,6 +60,8 @@ class InstrumentServerWindow(QMainWindow):
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
 
+        self.instrument_tree.itemDoubleClicked.connect(self.show_quantity_manager_gui)
+
         self.construct_bottom_buttons()
         self.construct_instrument_server_status()
 
@@ -68,7 +71,7 @@ class InstrumentServerWindow(QMainWindow):
         # Set the central widget
         self.setCentralWidget(self.main_widget)
 
-        # Setup Experiment GUI
+        # Setup Additional GUI
         self.experiment_window_gui = ExperimentWindowGui(self)
 
         self._ics = instrument_connection_service.InstrumentConnectionService()
@@ -259,7 +262,6 @@ class InstrumentServerWindow(QMainWindow):
             current_item = qtiter.value()
             current_item.setIcon(0, self.redIcon)
             qtiter += 1
-            
 
     def closeEvent(self, event):
         """Overrides closeEvent so that we throw a Dialogue question whether to exit or not."""
@@ -333,7 +335,24 @@ class InstrumentServerWindow(QMainWindow):
                 # Make sure we always close the connection
                 db.close_db(connection)
 
+    # Decorator allows method to know which item was double clicked, we can ignore column in this case
+    @pyqtSlot(QTreeWidgetItem, int)
+    def show_quantity_manager_gui(self, item, column):
+        cute_name = item.text(1)
+        quantity = 'Frequency'
 
+        # do nothing if not connected
+        if not self._ics.is_connected(cute_name):
+            return
+        
+        try:
+            instrument_manager = self._ics.get_instrument_manager(cute_name)
+        except Exception as e:
+            QMessageBox.critical(self, 'Unkown Error', e)
+            return
+
+        self.quantity_manager_gui = QuantityManagerGUI(self, instrument_manager, quantity)
+        self.quantity_manager_gui.show()
 
 
 if __name__ == '__main__':
