@@ -1,4 +1,4 @@
-from pyvisa import *
+from pyvisa import ResourceManager
 import requests
 
 
@@ -136,7 +136,7 @@ class InstrumentManager:
 
     @property
     def name(self):
-        return self._driver['general_settings']['name']
+        return self._name
 
     @property
     def quantity_values(self) -> dict:
@@ -174,12 +174,26 @@ class InstrumentManager:
         return self._instrument.delay
 
     @delay.setter
-    def delay(selfself, value):
+    def delay(self, value):
         """Sets instrument delay to value
         Parameters:
             value -- seconds
         """
         self._instrument.delay = value
+
+    def get_quantity_info(self, quantity):
+        """Returns only the necessary info for a given quantity
+        Parameters:
+            quantity -- Quantity name as provided in instrument driver
+        Returns:
+            Dictionary containing info on quantity without any commands associated with it
+        """
+        quantity_info = dict(self._driver['quantities'][quantity])
+        del quantity_info['set_cmd']
+        del quantity_info['get_cmd']
+        del quantity_info['combo_cmd']
+        quantity_info['combos'] = self._driver['quantities'][quantity].keys()
+        return quantity_info
 
     def get_value(self, quantity):
         """Gets value for given quantity
