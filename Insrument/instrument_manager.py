@@ -17,7 +17,6 @@ class InstrumentManager:
 
         # checks if model is correct, throws error if not
         self._check_model()
-
         self._startup()
 
     def _get_driver(self):
@@ -72,8 +71,9 @@ class InstrumentManager:
         self._instrument.stop_bits = self._driver['visa']['stop_bits']
         self._instrument.parity = self._driver['visa']['parity'].replace(' ', '_').lower()
 
-    '''Set's default value for given quantity'''
+    
     def _set_default_value(self, quantity):
+        """Set's default value for given quantity"""
         if self._driver['quantities'][quantity]['def_value']:
             self[quantity] = self._driver['quantities'][quantity]['def_value']
 

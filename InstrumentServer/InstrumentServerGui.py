@@ -300,7 +300,6 @@ class InstrumentServerWindow(QMainWindow):
         self.instrument_tree.clear()
 
     def get_known_instruments(self):
-
         self.clear_instrument_list()
         connection = None
 
@@ -343,6 +342,7 @@ class InstrumentServerWindow(QMainWindow):
 
         # do nothing if not connected
         if not self._ics.is_connected(cute_name):
+            self.connect_btn_clicked()
             return
         
         try:
@@ -351,7 +351,7 @@ class InstrumentServerWindow(QMainWindow):
             QMessageBox.critical(self, 'Unkown Error', e)
             return
 
-        self.quantity_manager_gui = QuantityManagerGUI(self, instrument_manager, quantity)
+        self.quantity_manager_gui = QuantityManagerGUI(self, instrument_manager)
         self.quantity_manager_gui.show()
 
 
