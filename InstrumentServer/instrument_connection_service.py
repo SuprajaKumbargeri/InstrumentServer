@@ -83,10 +83,11 @@ class InstrumentConnectionService:
             raise Exception(f"Failed to disconnect from the following instruments: {list_of_failures}")
 
 
-    def make_conn_str_tcip_instrument(ip_address: str) -> str:
-        '''
-        Example: TCPIP0::192.168.0.7::INSTR 
-        '''
+    def make_conn_str_tcip_instrument(self, ip_address: str) -> str:
+        """
+        Construct a connection string for TCPIP instruments
+        Example: TCPIP0::192.168.0.7::INSTR
+        """
         # Default TCPIP Interface
         TCPIP_INTERFACE = 'TCPIP0'
         END = 'INSTR'
