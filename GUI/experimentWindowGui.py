@@ -2,14 +2,12 @@ from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 
-from InstrumentServer.InstrumentServerGui import InstrumentServerWindow
-
 
 ###################################################################################
 # ExperimentWindowGui
 ###################################################################################
 class ExperimentWindowGui(QMainWindow):
-    def __init__(self, parent_gui: InstrumentServerWindow):
+    def __init__(self, parent_gui):
         super().__init__()
         self.parent_gui = parent_gui
         self.setWindowTitle('Experiment')
