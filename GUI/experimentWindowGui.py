@@ -27,6 +27,7 @@ class ExperimentWindowGui(QMainWindow):
 
         # Make the right GUI section
         self.construct_step_sequence_section()
+        self.construct_logging_section()
 
         # Set the central widget
         self.setCentralWidget(self.main_widget)
@@ -107,19 +108,180 @@ class ExperimentWindowGui(QMainWindow):
 
     def construct_step_sequence_section(self):
         """
-        GUI Section on the right
+        GUI Section on the right-top with step sequence
         """
         # The main widget in for this section
+        self.right_side_section = QVBoxLayout()
+
+        # The main widget for step sequence section
         self.step_sequence_group = QGroupBox("Step sequence")
 
         # The main layout for this section
         step_sequence_main_layout = QVBoxLayout()
 
-        sample_placeholder_lbl = QLabel("This will be the Step Sequence section")
-        step_sequence_main_layout.addWidget(sample_placeholder_lbl)
+        # This is the table for looping values in the experiment
+        step_sequence_table = QTreeWidget()
+
+        # Disabling arrows in the Tree Widget
+        step_sequence_table.setStyleSheet( "QTreeWidget::branch{border-image: url(none.png);}")
+
+        # Tree Widget Items remain expanded, disabling the option to toggle expansion
+        step_sequence_table.setItemsExpandable(False)
+
+        # Allow only one selection at a time -> SingleSelection
+        step_sequence_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
+        step_sequence_table.setHeaderLabels(['Channel', '# pts.', 'Step list', 'Output range'])
+        header = step_sequence_table.header()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)        
+       
+        step_sequence_table.itemSelectionChanged.connect(self.step_sequence_table_selection_changed)
+
+        """
+        Column Order:
+        ['Channel', '# pts.', 'Step list', 'Output range']
+        """
+        # TODO: Remove later (example data)
+        first_loop_sequence = QTreeWidgetItem(step_sequence_table, ['gen - Frequency', '51', '5 GHz - 10 GHz', '5 GHz - 10 GHz'])
+        second_loop_sequence = QTreeWidgetItem(first_loop_sequence, ['gen - Power', '51', '10 dBm - 20 dBm', '10 dBm - 20 dBm'])
+        third_loop_sequence = QTreeWidgetItem(second_loop_sequence, ['gen - Phase', '180', '0 rad - 3.14 rad', '0 rad - 3.14 rad'])
+        
+        different_loop_sequence = QTreeWidgetItem(step_sequence_table, ['another_channel - Voltage', '100', '-5 V - 5 V', '-5 V - 5 V'])
+        different_inner_loop_sequence = QTreeWidgetItem(different_loop_sequence, ['another_channel - Frequency', '10', '1 GHz - 10 GHz', '1 GHz - 10 GHz'])
+
+        # Expand all the inner items
+        step_sequence_table.expandAll()
+
+        step_sequence_main_layout.addWidget(step_sequence_table)
+
+        # Button section for 'edit' and 'remove' options
+        button_section_layout = QHBoxLayout()
+        edit_btn = QPushButton("Edit...")
+        button_section_layout.addStretch(1)
+        button_section_layout.addWidget(edit_btn)
+
+        remove_btn = QPushButton("Remove")        
+        button_section_layout.addWidget(remove_btn)
+
+        # Add button_section to the main layout
+        step_sequence_main_layout.addLayout(button_section_layout)
 
         self.step_sequence_group.setLayout(step_sequence_main_layout)
-        self.main_layout.addWidget(self.step_sequence_group)
+
+        # Stretch factor for 'step sequence' is set to 3
+        self.right_side_section.addWidget(self.step_sequence_group, 3)
+
+    def construct_logging_section(self):
+        """
+        GUI Section on the right-bottom with log channels, comment and timing
+        """
+        #############################################
+        # Log channels section
+        #############################################
+
+        # The main widget for log channels section
+        self.log_channels_group = QGroupBox("Log channels")
+
+        # The main layout for log channels section
+        log_channels_group_main_layout = QVBoxLayout()
+
+        # This is the table for output channels in the experiment
+        log_channels_table = QTreeWidget()
+
+        # Allow only one selection at a time -> SingleSelection
+        log_channels_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
+        # Tree Widget Items remain expanded, disabling the option to toggle expansion
+        log_channels_table.setItemsExpandable(False)
+
+        log_channels_table.setHeaderLabels(['Channel', 'Instrument', 'Address'])
+        header = log_channels_table.header()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  
+       
+        log_channels_table.itemSelectionChanged.connect(self.log_channels_table_selection_changed)
+
+        """
+        Column Order:
+        ['Channel', 'Instrument', 'Address']
+        """
+        # TODO: Remove later (example data)
+        QTreeWidgetItem(log_channels_table, ['Sij vs Frequency', 'Agilent VNA NIST', 'IP: 16'])        
+        
+        log_channels_group_main_layout.addWidget(log_channels_table)
+
+        # Button section for 'edit' and 'remove' options
+        button_section_layout = QHBoxLayout()
+        edit_btn = QPushButton("Edit...")
+        button_section_layout.addStretch(1)
+        button_section_layout.addWidget(edit_btn)
+
+        remove_btn = QPushButton("Remove")                
+        button_section_layout.addWidget(remove_btn)
+
+        # Add button_section to the main layout
+        log_channels_group_main_layout.addLayout(button_section_layout)
+
+        self.log_channels_group.setLayout(log_channels_group_main_layout)
+        
+        #############################################
+        # Comment section
+        #############################################
+
+        # The main widget for comment section
+        self.comment_group = QGroupBox("Comment")
+
+        # The main layout for comment section
+        comment_box_layout = QVBoxLayout()
+
+        comment_box = QTextEdit()
+        comment_box.textChanged.connect(self.comment_text_changed)
+
+        comment_box_layout.addWidget(comment_box)
+        self.comment_group.setLayout(comment_box_layout)
+
+        #############################################
+        # Timing section
+        #############################################
+
+        # The main widget for timing section
+        self.timing_group = QGroupBox("Timing")
+
+        # The main layout for timing section
+        timing_layout = QFormLayout()
+
+        # Widgets in the timing form
+        self.delay_time = QDoubleSpinBox()
+        timing_layout.addRow(QLabel("Delay between step and measure [s]:"), self.delay_time)
+        # TODO: Connect later
+        # self.delay_time.valueChanged.connect(delay_time_changed)
+
+        self.estimated_time = QSpinBox()
+        timing_layout.addRow(QLabel("Estimated time per point [s]:"), self.estimated_time)
+        # TODO: Connect later
+        # self.estimated_time.valueChanged.connect(delay_estimated_time)
+
+        # TODO: Connect later to set time needed value
+        self.time_needed = "0:00:00" # replace with calculated time needed value      
+        timing_layout.addRow(QLabel("Time needed:"), QLabel(self.time_needed))
+
+        self.timing_group.setLayout(timing_layout)
+
+        # Horizontal layout to add comment and timing sections
+        comment_timing_HLayout = QHBoxLayout()
+        comment_timing_HLayout.addWidget(self.comment_group)
+        comment_timing_HLayout.addWidget(self.timing_group)
+
+        # Stretch factor for 'log channels' is set to 2
+        self.right_side_section.addWidget(self.log_channels_group, 2)
+        # Stretch factor for 'comment' and 'timing' is set to 1      
+        self.right_side_section.addLayout(comment_timing_HLayout, 1)
+        
+        self.main_layout.addLayout(self.right_side_section)
 
 
     def construct_experiment_menu_bar(self):
@@ -146,4 +308,13 @@ class ExperimentWindowGui(QMainWindow):
         self.close()
 
     def channels_table_selection_changed(self):
+        pass
+
+    def step_sequence_table_selection_changed(self):
+        pass
+
+    def log_channels_table_selection_changed(self):
+        pass
+
+    def comment_text_changed(self):
         pass
