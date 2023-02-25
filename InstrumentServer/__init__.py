@@ -54,6 +54,16 @@ def create_app(test_config=None):
         detect_inst_thread = threading.Thread(target=instrumentDetectionServ.detectInstruments())
         detect_inst_thread.start()
 
+    
+    # Configure PostgreSQL instance to start and stop with the Instrument Server
+    # Commented during development phase
+    '''
+    status = os.system('cmd /c "pg_ctl -D "C:\Program Files\PostgreSQL\\15\data" start"')
+    if status == 1:
+        my_logger.error("Failed to start PostgreSQL Server. Shutting down Instrument Server.")
+        sys.exit("Failed to start PostgreSQL Server. Shutting down Instrument Server.")
+    '''
+
     # create and configure instrument server
     # __name__ is the name of the current Python module
     # instance_relative_config tells app that config file is 
@@ -119,6 +129,7 @@ def create_app(test_config=None):
     @app.route('/shutDown')
     def shutDown():
         instrument_com.closeAllInstruments()
+        # os.system('cmd /c "pg_ctl -D "C:\Program Files\PostgreSQL\\15\data" stop"')
         my_logger.info("Instrumer Server is shutting down...")
 
         # Terminate the entire application
