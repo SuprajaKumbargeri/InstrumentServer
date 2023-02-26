@@ -265,5 +265,3 @@ def setLatestValue(connection: object, latest_value: str, instrument_name: str, 
         postgres_insert_query = """ UPDATE %s SET latest_value = %s WHERE cute_name = %s and label = %s"""
         cursor.execute(postgres_insert_query, (table, latest_value, instrument_name, label))
         connection.commit()
-
-    return latest_value
