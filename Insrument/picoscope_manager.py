@@ -65,10 +65,6 @@ class PicoscopeManager:
 
     def _startup(self):
         # Check models supported by driver
-        if self._driver['model_and_options']['check_model']:
-            model = self.model
-            # TODO: Check if model matches given one in driver
-
         for quantity in self.quantities.keys():
             self._set_default_value(quantity)
 
@@ -87,15 +83,30 @@ class PicoscopeManager:
             response.raise_for_status()
 
         value = response.json()
-        if not value:
-            self.quantities[quantity]['def_value']
+        if value['latest_value'] is None:
+            return self.quantities[quantity]['def_value']
         else:
-            return value
-        # return self.quantities[quantity]['def_value']  # self.ask(self.quantities[quantity]['get_cmd'])
+            return value['latest_value']
 
     def set_value(self, quantity, value):
-        lower_lim = self.quantities[quantity]['low_lim']
-        upper_lim = self.quantities[quantity]['high_lim']
+        self._check_limits(quantity, value)
+        # value = self._convert_value(quantity, value)
+        self.quantities[quantity]["def_value"] = value
+
+        # instead of assigin value to def_value, update driver table in SQL db
+
+    def _check_limits(self, quantity, value):
+        """Checks value against the limits or state values (for a combo) of a quantity
+            Parameters:
+                quantity -- qunatity whose limit to compare
+                value -- value to compare against
+            Raises:
+                ValueError if value is out of range of limit or not in one of the combos states
+        """
+
+        print("inside of check limits!")
+        lower_lim = self._driver['quantities'][quantity]['low_lim']
+        upper_lim = self._driver['quantities'][quantity]['high_lim']
 
         # check limits
         if not lower_lim == '-INF' and value < float(lower_lim):
@@ -103,9 +114,50 @@ class PicoscopeManager:
         if not upper_lim == '+INF' and value < float(upper_lim):
             raise ValueError(f"{value} is higher than {quantity}'s upper limit of {upper_lim}.")
 
-        self.quantities[quantity]["def_value"] = value
+        # check for valid states for Combos
+        if self._driver['quantities'][quantity]['data_type'].upper() == 'COMBO':
+            if self._driver['quantities'][quantity]['combo_cmd']:
+                valid_states = list(self._driver['quantities'][quantity]['combo_cmd'].keys())
+                valid_cmds = list(self._driver['quantities'][quantity]['combo_cmd'].values())
+            else:
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
 
-        # instead of assigin value to def_value, update driver table in SQL db
+            if value not in (valid_states or valid_cmds):
+                raise ValueError(f"{value} is not a recognized state of {quantity}'s states. Valid states are {valid_states}.")
+
+    def _convert_value(self, quantity, value):
+        """Converts given value to pre-defined value in driver or returns the given value is N/A to convert
+            Parameters:
+                quantity -- quantity that holds the pre-defined value
+                value -- value that needs converting
+            Returns:
+                Converted value
+            Raises:
+                ValueError if quantity is a boolean but a boolean value is not provided
+        """
+        quantity_dict = self._driver['quantities'][quantity]
+
+        # change boolean values to driver specified boolean values
+        # Checks allow for user to pass in TRUE, FALSE, or driver-defined values
+        if quantity_dict['data_type'].upper() == 'BOOLEAN':
+            if value.upper() == ("TRUE" or self._driver['visa']['str_true'].upper()):
+                return self._driver['visa']['str_true']
+            elif value.upper() == ("FALSE" or self._driver['visa']['str_false'].upper()):
+                return self._driver['visa']['str_false']
+            else:
+                raise ValueError(f"{value} is not a valid boolean value.")
+
+        elif quantity_dict['data_type'].upper() == 'COMBO':
+            # combo quantity contains no states or commands
+            if not quantity_dict['combo_cmd']:
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.") \
+ \
+                    # if user provided name of the state, convert, else return given value as it is already a valid value for the commandcommand
+            if value in quantity_dict['combo_cmd'].keys():
+                return quantity_dict['combo_cmd'][value]
+
+        else:
+            return value
 
     def __getitem__(self, quantity):
         return self.get_value(quantity)
