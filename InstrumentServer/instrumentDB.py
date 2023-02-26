@@ -148,3 +148,22 @@ def getLatestValue():
     except Exception:
         my_logger.error(Exception.args)
         return jsonify(Exception.args), 400
+
+''' Set latest value of label '''
+@bp.route('/setLatestValue')
+def setLatestValue():
+    try:
+        instrument_name = request.args['cute_name']
+        label = request.args['label']
+        connection = db.get_db()
+        latest_value = ids.getLatestValue(connection, instrument_name, label)
+        db.close_db(connection)
+        return jsonify({'latest_value': latest_value}), 200
+
+    except BadRequestKeyError:
+        my_logger.error('Invalid instrument name.')
+        return jsonify('Invalid instrument name.'), 400
+
+    except Exception:
+        my_logger.error(Exception.args)
+        return jsonify(Exception.args), 400
