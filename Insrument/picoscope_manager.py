@@ -91,9 +91,16 @@ class PicoscopeManager:
     def set_value(self, quantity, value):
         self._check_limits(quantity, value)
         # value = self._convert_value(quantity, value)
-        self.quantities[quantity]["def_value"] = value
+        #self.quantities[quantity]["def_value"] = value
 
-        # instead of assigin value to def_value, update driver table in SQL db
+        url = r'http://localhost:5000/instrumentDB/setLatestValue'
+        response = requests.get(url, params={'cute_name': self._name, 'label': quantity, 'latest_value': value})
+        if 300 > response.status_code <= 200:
+            # success
+            pass
+        else:
+            response.raise_for_status()
+
 
     def _check_limits(self, quantity, value):
         """Checks value against the limits or state values (for a combo) of a quantity

@@ -155,10 +155,11 @@ def setLatestValue():
     try:
         instrument_name = request.args['cute_name']
         label = request.args['label']
+        latest_value = request.args['latest_value']
         connection = db.get_db()
-        latest_value = ids.getLatestValue(connection, instrument_name, label)
+        ids.setLatestValue(connection, latest_value, instrument_name, label)
         db.close_db(connection)
-        return jsonify({'latest_value': latest_value}), 200
+        return jsonify("Instrument's latest value on {label} updated.".format(label=label)), 200
 
     except BadRequestKeyError:
         my_logger.error('Invalid instrument name.')

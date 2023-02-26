@@ -39,8 +39,8 @@ ps6000 = PicoscopeManager(cute_name, response_dict)
 
 try:
     print(ps6000.get_value('Frequency'))
-    ps6000.set_value('Frequency', 1000)
-    print(ps6000.get_value('Frequency'))
+    #ps6000.set_value('Frequency', 1000)
+    #print(ps6000.get_value('Frequency'))
 
 except Exception as e:
     print(e)

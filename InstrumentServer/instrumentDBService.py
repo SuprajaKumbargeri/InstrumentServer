@@ -258,14 +258,12 @@ def getLatestValue(connection: object, instrument_name: str, label: str) -> str:
 
     return latest_value
 
-def setLatestValue(connection: object, instrument_name: str, label: str) -> str:
+def setLatestValue(connection: object, latest_value: str, instrument_name: str, label: str):
 
     table = 'quantities'
-    latest_value = None
     with connection.cursor() as cursor:
-        latest_value_query = "SELECT {column} FROM {table_name} WHERE cute_name = '{cute_name}' and label = '{label}';" \
-            .format(column='latest_value', table_name=table, cute_name=instrument_name, label=label)
-        cursor.execute(latest_value_query)
-        latest_value = cursor.fetchone()[0]
+        postgres_insert_query = """ UPDATE %s SET latest_value = %s WHERE cute_name = %s and label = %s"""
+        cursor.execute(postgres_insert_query, (table, latest_value, instrument_name, label))
+        connection.commit()
 
     return latest_value
