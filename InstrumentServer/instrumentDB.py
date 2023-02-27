@@ -130,6 +130,7 @@ def removeInstrument():
         my_logger.error(Exception.args)
         return jsonify(Exception.args), 400
 
+
 ''' Returns latest value of label '''
 @bp.route('/getLatestValue')
 def getLatestValue():
@@ -149,6 +150,7 @@ def getLatestValue():
         my_logger.error(Exception.args)
         return jsonify(Exception.args), 400
 
+
 ''' Set latest value of label '''
 @bp.route('/setLatestValue')
 def setLatestValue():
@@ -162,8 +164,8 @@ def setLatestValue():
         return jsonify("Instrument's latest value on {label} updated.".format(label=label)), 200
 
     except BadRequestKeyError:
-        my_logger.error('Invalid instrument name.')
-        return jsonify('Invalid instrument name.'), 400
+        my_logger.error('Invalid instrument name or label.')
+        return jsonify('Invalid instrument name or label.'), 400
 
     except Exception:
         my_logger.error(Exception.args)
