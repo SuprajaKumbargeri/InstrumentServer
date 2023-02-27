@@ -251,7 +251,7 @@ class InstrumentManager:
             Parameters:
                 quantity -- quantity that holds the pre-defined value
                 value -- value that needs converting
-            Returns: 
+            Returns:
                 Converted value
             Raises:
                 ValueError if quantity is a boolean but a boolean value is not provided

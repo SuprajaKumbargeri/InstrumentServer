@@ -1,9 +1,6 @@
 import json
 from psycopg2.extensions import AsIs
-# from psycopg2 import errors
-from psycopg2 import errors
 import logging
-import requests
 from flask import request, current_app, g
 from flask import Blueprint, jsonify
 from werkzeug.exceptions import (abort, BadRequestKeyError)
@@ -13,56 +10,37 @@ from . import driverParser as dp
 
 
 bp = Blueprint("instrumentDB", __name__,  url_prefix='/instrumentDB')
-UniqueViolation = errors.lookup('23505')
 
 def setLogger(logger: logging.Logger):
     global my_logger 
     my_logger = logger
 
 ''' Adds instrument details to the database '''
-@bp.route('/addInstrument', methods=['GET', 'POST'])
+@bp.route('/addInstrument')
 def addInstrument():
     try:        
         global instrument_details
-        details = request.get_json()
+        result = json.loads(request.args['details'])
+        details = result['details']
+        instrument_details = dp.addDriver(details['path'])[0]
+        connection = db.get_db()
+        cute_name = details['cute_name']
+        manufacturer = instrument_details['general_settings']['name']
 
-        url = r'http://localhost:5000/driverParser/'
-        instrument_details = requests.post(url, json=details['path'])
+        ids.addInstrumentInterface(connection, details, manufacturer)
+        ids.addGenSettings(connection, instrument_details['general_settings'], cute_name)
+        ids.addModelOptions(connection, instrument_details['model_and_options'], cute_name)
+        ids.addVisaSettings(connection, instrument_details['visa'], cute_name)
+        for quantity in instrument_details['quantities'].keys():
+            ids.addQuantity(connection, instrument_details['quantities'][quantity], cute_name)
+        connection.commit()
 
-        if 300 > instrument_details.status_code <= 200:        
-            connection = db.get_db()
-            cute_name = details['cute_name']
-            instrument_details = instrument_details.json()
-            manufacturer = instrument_details['general_settings']['name']
-
-            ids.addInstrumentInterface(connection, details, manufacturer)
-            ids.addGenSettings(connection, instrument_details['general_settings'], cute_name)        
-            ids.addModelOptions(connection, instrument_details['model_and_options'], cute_name)        
-            ids.addVisaSettings(connection, instrument_details['visa'], cute_name)
-            for quantity in instrument_details['quantities'].keys():
-                ids.addQuantity(connection, instrument_details['quantities'][quantity], cute_name)
-            connection.commit()
-            
-            db.close_db(connection)
-            return jsonify("Instrument added."), 200
-        
-        else:
-            raise FileNotFoundError
-
-    except FileNotFoundError:
-        my_logger.error("Invalid driver path.")
-        return jsonify("Invalid driver path."), 400
-    
-    except UniqueViolation:
-        connection.rollback()
         db.close_db(connection)
-        my_logger.error("Instrument name already exists.")
-        return jsonify("Instrument name already exists.."), 400
-    
+        return jsonify("Instrument added."), 200
+
     except Exception:
         my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400   
-
+        return jsonify(Exception.args), 400
 
 
 ''' Returns 'cute_name' and 'manufacturer' of existing instruments '''
@@ -91,7 +69,7 @@ def allInstruments():
 
 
 @bp.route('/getInstrument')
-def getInstrument():
+def getInstruments():
     try:
         instrument_name = request.args['cute_name']        
         connection = db.get_db()
@@ -101,30 +79,18 @@ def getInstrument():
         visa_settings = ids.getVisaSettings(connection, instrument_name)
         quantities = ids.getQuantities(connection, instrument_name)
 
-        db.close_db(connection)
+
+
+
         return jsonify({'instrument_interface' : instrument_interface, 'general_settings' : general_settings, 'model_and_options' : model_options, 'visa' : visa_settings, 'quantities' : quantities}), 200
 
-    except BadRequestKeyError:
+    except IndexError:
         my_logger.error('Invalid instrument name.')
         return jsonify('Invalid instrument name.'), 400
 
-    except Exception:
-        my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
-    
-
-@bp.route('/removeInstrument')
-def removeInstrument():
-    try:
-        instrument_name = request.args['cute_name']        
-        connection = db.get_db()
-        ids.deleteInstrument(connection, instrument_name)
-        db.close_db(connection)
-        return jsonify('Instrument removed.'), 200
-
     except BadRequestKeyError:
-        my_logger.error('Invalid instrument name.')
-        return jsonify('Invalid instrument name.'), 400
+        my_logger.error('No instrument name was given.')
+        return jsonify('No instrument name was given.'), 400
 
     except Exception:
         my_logger.error(Exception.args)
