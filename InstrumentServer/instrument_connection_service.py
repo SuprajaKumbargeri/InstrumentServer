@@ -9,6 +9,8 @@ class INST_INTERFACE(Enum):
     GPIB = 'GPIB'
     TCPIP = 'TCPIP'
     SERIAL = 'SERIAL'
+    ASRL = 'ASRL'
+    COM = 'COM'
 
 class InstrumentConnectionService:
     def __init__(self) -> None:
