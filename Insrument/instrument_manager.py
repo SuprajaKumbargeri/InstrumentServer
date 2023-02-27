@@ -26,6 +26,7 @@ class InstrumentManager:
         self._data_bits = None
         self._stop_bits = None
         self._parity = None
+        self._query_errors = None
 
         # Get the driver dictionary
         self._get_driver()
@@ -47,6 +48,7 @@ class InstrumentManager:
         self._startup()
 
     def _get_driver(self):
+        print('Getting the driver...')
         """Communicates with instrument server to get driver for instrument"""
         # implementation will likely change
         url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
@@ -58,10 +60,12 @@ class InstrumentManager:
             response.raise_for_status()
 
     def _initialize_instrument(self, connection):
+        print('Connecting to instrument...')
         """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
         # string passed through in VISA form
         if isinstance(connection, str):
             self._rm = ResourceManager()
+            print('Got ResourceManager...')
 
             if self._is_serial_instrument():
                 # The actual terminating chars as str
@@ -98,6 +102,7 @@ class InstrumentManager:
         raise ValueError(f"No model listed in ['Models and options'] match the instruments model: '{instrID}'")
 
     def _get_visa_settings(self):
+        print('Getting visa settings...')
         """Gets instrument settings using data in driver['VISA settings']"""
         if self._driver is not None:
             # timeout in ms
@@ -335,7 +340,8 @@ class InstrumentManager:
 
     def _is_serial_instrument(self):
         """Does current instrument use serial to communicate?"""
-        return 'ASRL' or 'COM' in self._driver["instrument_interface"]["interface"]
+        interface = self._driver["instrument_interface"]["interface"]
+        return 'ASRL' in interface or 'COM' in interface
 
 
     def __getitem__(self, quantity):
