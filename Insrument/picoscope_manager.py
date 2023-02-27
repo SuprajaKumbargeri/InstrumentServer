@@ -9,7 +9,6 @@ class PicoscopeManager:
         self._name = name
         self._driver = driver
         self._ps = self._initialize_picoscope()
-        # self._startup()
 
     '''Communicates with instrument server to get driver for instrument'''
 
@@ -46,34 +45,15 @@ class PicoscopeManager:
         return self._name
 
     @property
-    def model(self):
-        return self.ask(self._driver['model_and_options']['model_cmd'])
-
-    @property
-    def options(self):
-        return self.ask(self._driver['model_and_options']['option_cmd'])
-
-    @property
     def quantities(self):
         return self._driver['quantities']
 
     '''Set's default value for given quantity'''
-
     def _set_default_value(self, quantity):
         if self.quantities[quantity]['def_value']:
             self[quantity] = self.quantities[quantity]['def_value']
 
-    def _startup(self):
-        # Check models supported by driver
-        for quantity in self.quantities.keys():
-            self._set_default_value(quantity)
-
-        # store def values from driver to db
-
     def get_value(self, quantity):
-        # instead of getting value from quantities dict, get from db
-        # if db doesn't have the value, use def_value
-        # otherwise, get value from the db
         url = r'http://localhost:5000/instrumentDB/getLatestValue'
         response = requests.get(url, params={'cute_name': self._name, 'label': quantity})
         if 300 > response.status_code <= 200:
@@ -90,9 +70,6 @@ class PicoscopeManager:
 
     def set_value(self, quantity, value):
         self._check_limits(quantity, value)
-        # value = self._convert_value(quantity, value)
-        #self.quantities[quantity]["def_value"] = value
-
         url = r'http://localhost:5000/instrumentDB/setLatestValue'
         response = requests.get(url, params={'cute_name': self._name, 'label': quantity, 'latest_value': value})
         if 300 > response.status_code <= 200:
@@ -100,7 +77,6 @@ class PicoscopeManager:
             pass
         else:
             response.raise_for_status()
-
 
     def _check_limits(self, quantity, value):
         """Checks value against the limits or state values (for a combo) of a quantity

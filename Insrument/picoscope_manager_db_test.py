@@ -19,7 +19,7 @@ add picoscope instrument to the db
 '''
 simulate connect_to_visa_instrument
 
-will create or update connect_to_visa_instrument to handle picoscope
+will create connect_to_visa_instrument to handle picoscope
 
 '''
 
@@ -39,7 +39,7 @@ ps6000 = PicoscopeManager(cute_name, response_dict)
 
 try:
     print(ps6000.get_value('Frequency'))
-    ps6000.set_value('Frequency', 10000)
+    ps6000.set_value('Frequency', 2000)
     print(ps6000.get_value('Frequency'))
 
 except Exception as e:
