@@ -111,7 +111,6 @@ class PicoscopeManager:
                 ValueError if value is out of range of limit or not in one of the combos states
         """
 
-        print("inside of check limits!")
         lower_lim = self._driver['quantities'][quantity]['low_lim']
         upper_lim = self._driver['quantities'][quantity]['high_lim']
 
