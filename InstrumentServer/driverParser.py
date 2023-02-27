@@ -11,7 +11,6 @@ from . import driverParserService as dps
 
 bp = Blueprint("driverParser", __name__,  url_prefix='/driverParser')
 ini_path = None
-config = RawConfigParser()
 
 
 def setLogger(logger: logging.Logger):
@@ -26,6 +25,7 @@ def parseDriver():
         global ini_path
         ini_path = request.get_json()
 
+        config = RawConfigParser()
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
         model_options = dps.getModelOptions(dict(config['Model and options']))
@@ -46,6 +46,7 @@ def addDriver():
         global ini_path
         ini_path = request.form['driverPath']
         
+        config = RawConfigParser()
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
         model_options = dps.getModelOptions(dict(config['Model and options']))

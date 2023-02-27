@@ -22,10 +22,8 @@ def setLogger(logger: logging.Logger):
 ''' Adds instrument details to the database '''
 @bp.route('/addInstrument', methods=['GET', 'POST'])
 def addInstrument():
-    try:        
-        global instrument_details
+    try:
         details = request.get_json()
-
         url = r'http://localhost:5000/driverParser/'
         instrument_details = requests.post(url, json=details['path'])
 
@@ -57,7 +55,7 @@ def addInstrument():
         connection.rollback()
         db.close_db(connection)
         my_logger.error("Instrument name already exists.")
-        return jsonify("Instrument name already exists.."), 400
+        return jsonify("Instrument name already exists."), 400
     
     except Exception:
         my_logger.error(Exception.args)

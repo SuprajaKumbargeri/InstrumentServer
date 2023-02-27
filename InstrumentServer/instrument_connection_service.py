@@ -61,7 +61,7 @@ def connect_to_visa_instrument(cute_name: str):
 
 
 def add_instrument_to_database(details: dict):
-    url = r'http://localhost:5000/instrumentDB/addInstrument'
+    url = r'http://127.0.0.1:5000/instrumentDB/addInstrument'
     response = requests.post(url, json=details)
 
     if 300 > response.status_code <= 200:
@@ -71,7 +71,7 @@ def add_instrument_to_database(details: dict):
 
 
 def remove_instrument_from_database(cute_name: str):
-    url = r'http://localhost:5000/instrumentDB/removeInstrument'
+    url = r'http://127.0.0.1:5000/instrumentDB/removeInstrument'
     response = requests.get(url, params={'cute_name': cute_name})
 
     if 300 > response.status_code <= 200:

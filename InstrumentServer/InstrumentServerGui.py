@@ -186,11 +186,11 @@ class InstrumentServerWindow(QMainWindow):
 
             else:
                 if dlg.interface_choice.currentText() != "TCPIP": dlg.address_line.setText("")
-                details = {"cute_name": dlg.name_line.text(), 
+                details = {"cute_name": dlg.name_line.text().strip(),
                    "interface": dlg.interface_choice.currentText(),
-                   "ip_address": dlg.address_line.text(), 
-                   "serial": str(dlg.serial_check.isChecked()), 
-                   "visa": str(dlg.visa_check.isChecked()), 
+                   "ip_address": dlg.address_line.text().strip(),
+                   "serial": str(dlg.serial_check.isChecked()),
+                   "visa": str(dlg.visa_check.isChecked()),
                    "path": dlg.path_line.text()}
 
                 connect_result, msg = ics.add_instrument_to_database(details)
