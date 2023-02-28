@@ -338,7 +338,6 @@ class InstrumentServerWindow(QMainWindow):
     @pyqtSlot(QTreeWidgetItem, int)
     def show_quantity_manager_gui(self, item, column):
         cute_name = item.text(1)
-        quantity = 'Frequency'
 
         # do nothing if not connected
         if not self._ics.is_connected(cute_name):
@@ -351,8 +350,7 @@ class InstrumentServerWindow(QMainWindow):
             QMessageBox.critical(self, 'Unkown Error', e)
             return
 
-        self.quantity_manager_gui = QuantityManagerGUI(self, instrument_manager)
-        self.quantity_manager_gui.show()
+        self.quantity_manager_gui = QuantityManagerGUI(instrument_manager)
 
 
 if __name__ == '__main__':

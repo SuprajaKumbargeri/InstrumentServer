@@ -193,6 +193,7 @@ class InstrumentManager:
         del quantity_info['get_cmd']
         del quantity_info['combo_cmd']
         quantity_info['combos'] = self._driver['quantities'][quantity].keys()
+        quantity_info['name'] = quantity
         return quantity_info
 
     def get_value(self, quantity):
