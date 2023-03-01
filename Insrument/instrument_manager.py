@@ -1,6 +1,6 @@
 from pyvisa import ResourceManager
 import requests
-
+from copy import deepcopy
 
 class InstrumentManager:
     def __init__(self, name, connection):
@@ -188,7 +188,7 @@ class InstrumentManager:
         Returns:
             Dictionary containing info on quantity without any commands associated with it
         """
-        quantity_info = dict(self._driver['quantities'][quantity])
+        quantity_info = deepcopy(self._driver['quantities'][quantity])
         del quantity_info['set_cmd']
         del quantity_info['get_cmd']
         del quantity_info['combo_cmd']
