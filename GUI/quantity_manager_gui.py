@@ -1,29 +1,34 @@
-from PyQt6.QtWidgets import (QWidget, QFrame, QVBoxLayout, QHBoxLayout, QComboBox, 
-                             QPushButton, QDoubleSpinBox, QMessageBox)
-from PyQt6 import QtCore
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea)
 from Insrument.instrument_manager import InstrumentManager
-from GUI.quantity_frames import *
+from GUI.quantity_group_boxes import *
 
 class QuantityManagerGUI(QWidget):
     def __init__(self, instrument_manager: InstrumentManager):
         super(QuantityManagerGUI, self).__init__()
 
-        self.im = instrument_manager
-        self.main_layout = QVBoxLayout()
-        
-        quantity_info = self.im.get_quantity_info('Frequency')
-        frame = quantity_frame_factory(quantity_info, self.im.set_value, self.im.get_value)
-        self.main_layout.addWidget(frame)
-        
-        quantity_info = self.im.get_quantity_info('Function')
-        frame = quantity_frame_factory(quantity_info, self.im.set_value, self.im.get_value)
-        self.main_layout.addWidget(frame)
+        scroll_layout = QVBoxLayout()
+        widget = QWidget()
+        widget.setLayout(scroll_layout)
 
-        self.setLayout(self.main_layout)
+        # add all quantities
+        for quantity in instrument_manager.quantity_names:
+            quantity_info = instrument_manager.get_quantity_info(quantity)
+            group = quantity_group_box_factory(quantity_info, instrument_manager.set_value, instrument_manager.get_value)
+            group.setFixedHeight(100)
+            scroll_layout.addWidget(group)
 
-        self.setWindowTitle(f"{self.im.name} Quantity Manager")
+        scroll_layout.addStretch(1)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(widget)
+        scroll_area.setWidgetResizable(True)
+
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(scroll_area)
+        self.setLayout(main_layout)
+
+        self.setWindowTitle(f"{instrument_manager.name} Manager")
         self.show()
-
         self.resize(800, 600)
 
 

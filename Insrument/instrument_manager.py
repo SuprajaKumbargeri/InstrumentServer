@@ -201,7 +201,8 @@ class InstrumentManager:
         Parameters:
             quantity -- Quantity name as provided in instrument driver
         """
-        return self.ask(self._driver['quantities'][quantity]['get_cmd'])
+        value = self.ask(self._driver['quantities'][quantity]['get_cmd'])
+        return self._convert_return_value(quantity, value)
 
     def set_default_value(self, quantity):
         """Sets default value for given quantity
@@ -276,25 +277,56 @@ class InstrumentManager:
         # change boolean values to driver specified boolean values
         # Checks allow for user to pass in TRUE, FALSE, or driver-defined values
         if quantity_dict['data_type'].upper() == 'BOOLEAN':
-            if value.upper() == ("TRUE" or self._driver['visa']['str_true'].upper()):
+            value = str(value).strip()
+            if value.upper() == ("TRUE" or self._driver['visa']['str_true'].upper().strip()):
                 return self._driver['visa']['str_true']
-            elif value.upper() == ("FALSE" or self._driver['visa']['str_false'].upper()):
+            elif value.upper() == ("FALSE" or self._driver['visa']['str_false'].upper().strip()):
                 return self._driver['visa']['str_false']
             else:
                 raise ValueError(f"{value} is not a valid boolean value.")
             
         elif quantity_dict['data_type'].upper() == 'COMBO':
+            value = value.strip()
             # combo quantity contains no states or commands
             if not quantity_dict['combo_cmd']:
                 raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")\
                 
             # if user provided name of the state, convert, else return given value as it is already a valid value for the commandcommand
-            if value in quantity_dict['combo_cmd'].keys():
+            if value in (combo.strip() for combo in quantity_dict['combo_cmd'].keys()):
                 return quantity_dict['combo_cmd'][value]
         
         else:
             return value
 
+    def _convert_return_value(self, quantity, value):
+        quantity_dict = self._driver['quantities'][quantity]
+
+        # change driver specified boolean values to boolean value
+        if quantity_dict['data_type'].upper() == 'BOOLEAN':
+            value = str(value).strip()
+            if value.upper() == self._driver['visa']['str_true'].upper().strip():
+                return True
+            elif value.upper() == self._driver['visa']['str_false'].upper().strip():
+                return False
+            else:
+                raise ValueError(f"{self.name} returned an invalid value for {quantity}. {value} is not a valid boolean value. Please check instrument driver.")
+            
+        # Instrument will return instrument-defined value, convert it to driver-defined value
+        elif quantity_dict['data_type'].upper() == 'COMBO':
+            value = value.strip()
+            # combo quantity contains no states or commands
+            if not quantity_dict['combo_cmd']:
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
+                
+            # .keys() contains driver-defined value, .values() contains instrument-defined values
+            for key in (combo.strip() for combo in quantity_dict['combo_cmd'].keys()):
+                if value.strip() == quantity_dict['combo_cmd'][key].strip():
+                    return key
+
+            raise ValueError(f"{self.name} returned an invalid value for {quantity}. {value} is not a valid combo value. Please check instrument driver.")
+        
+        else:
+            return value
 
     def __getitem__(self, quantity):
         return self.get_value(quantity)
