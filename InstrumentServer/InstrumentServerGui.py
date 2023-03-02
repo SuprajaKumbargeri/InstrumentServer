@@ -20,6 +20,8 @@ class InstrumentServerWindow(QMainWindow):
 
         # Convenience flag preventing VISA/DB aspects from being automatically called at startup
         self.dev_machine = False
+        # key: instrument cute name, value: instrument type - VISA or NONE_VISA
+        self.instrument_type = {}
 
         super(InstrumentServerWindow, self).__init__()
 
@@ -206,7 +208,11 @@ class InstrumentServerWindow(QMainWindow):
             return
 
         try:
-            self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
+            if self.instrument_type[self.currently_selected_instrument] == "VISA":
+                self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
+            else:
+                self._ics.connect_to_none_visa_instrument(self.currently_selected_instrument)
+
             current_item = self.instrument_tree.currentItem()
             print(current_item)
             current_item.setIcon(0, self.greenIcon)
@@ -317,9 +323,14 @@ class InstrumentServerWindow(QMainWindow):
                         interface = instrument[2]
                         ip_address = instrument[3]
                         serial = instrument[4]
-                        via = instrument[5]
+                        visa = instrument[5]
 
                         print(ip_address)
+
+                        if visa:
+                            self.instrument_type[cute_name] = "VISA"
+                        else:
+                            self.instrument_type[cute_name] = "NONE_VISA"
 
                         # If an IP Address was provided, use it for Address column, otherwise use the Interface
                         self.add_instrument_to_list(manufacturer,
