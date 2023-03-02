@@ -400,6 +400,8 @@ def getQuantities(settings: dict) -> dict:
         else:
             cmds = None
 
+        combo_cmd = None
+
         # id datatype is 'COMBO' must have same number of combo_defs and cmd_defs
         # turn combos and cmds into dictionary
         if combos and cmds:

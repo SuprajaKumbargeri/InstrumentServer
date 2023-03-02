@@ -1,25 +1,53 @@
+from enum import Enum
 from pyvisa import ResourceManager
 import requests
 from copy import deepcopy
 
+# Maps terminating character from ini file to actual character
+TERM_CHAR = Enum('TERM_CHAR',
+                 {'Auto': 'Auto',
+                  'None': '',
+                  'CR': '\r',
+                  'LF': '\n',
+                  'CR+LF': '\r\n'})
+
+###################################################################################
+# InstrumentManager
+###################################################################################
 class InstrumentManager:
     def __init__(self, name, connection):
         self._name = name
+        self._instrument = None
+        self._driver = None
+        self._timeout = 1000.0
+        self._term_chars = None
+        self._send_end = None
+        self._baud_rate = None
+        self._data_bits = None
+        self._stop_bits = None
+        self._parity = None
+        self._query_errors = None
 
+        # Get the driver dictionary
         self._get_driver()
+        self._get_visa_settings()
+
+        if self._is_serial_instrument():
+            self._get_serial_values()
+
         self._initialize_instrument(connection)
 
-        # TODO: add check for visa instrument
+        # Set these after we have a PyVISA resource (self._instrument)
         self._initialize_visa_settings()
 
-        if "ASLR" in self._driver["instrument_interface"]["interface"]:
-            self._set_serial_values()        
+        # TODO: add check for visa instrument
 
         # checks if model is correct, throws error if not
         self._check_model()
         self._startup()
 
     def _get_driver(self):
+        print('Getting the driver...')
         """Communicates with instrument server to get driver for instrument"""
         # implementation will likely change
         url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
@@ -31,11 +59,29 @@ class InstrumentManager:
             response.raise_for_status()
 
     def _initialize_instrument(self, connection):
+        print('Connecting to instrument...')
         """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
         # string passed through in VISA form
         if isinstance(connection, str):
             self._rm = ResourceManager()
-            self._instrument = self._rm.open_resource(connection)
+            print('Got ResourceManager...')
+
+            if self._is_serial_instrument():
+                # The actual terminating chars as str
+                read_term = str(TERM_CHAR[self._term_chars].value)
+
+                print('Using the following parameters to connect to serial VISA instrument: resource_name={}, '
+                      'read_termination={}, baud_rate={}'.format(connection,
+                                                                 TERM_CHAR[self._term_chars],
+                                                                 self._baud_rate))
+
+                # To connect a serial instrument, baud_rate and read_termination is required
+                self._instrument = self._rm.open_resource(resource_name=connection,
+                                                          read_termination=read_term,
+                                                          baud_rate=self._baud_rate)
+            else:
+                print('Connecting to VISA instrument: {} using: {}'.format(self.name, connection))
+                self._instrument = self._rm.open_resource(connection)
 
         # TODO: allow for user defined instrument class
         else:
@@ -54,15 +100,33 @@ class InstrumentManager:
 
         raise ValueError(f"No model listed in ['Models and options'] match the instruments model: '{instrID}'")
 
+    def _get_visa_settings(self):
+        print('Getting visa settings...')
+        """Gets instrument settings using data in driver['VISA settings']"""
+        if self._driver is not None:
+            # timeout in ms
+            self._timeout = float(self._driver['visa']['timeout']) * 1000
+            self._term_chars = self._driver['visa']['term_char']
+            self._send_end = self._driver['visa']['send_end_on_write']
+
+            # used to determine if errors should be read after every read
+            self._query_errors = self._driver['visa']['query_instr_errors']
+        else:
+            print('Driver dictionary is not defined!')
+
+    def _get_serial_values(self):
+        """Gets Instrument values for serial instruments"""
+        self._baud_rate = self._driver['visa']['baud_rate']
+        self._data_bits = self._driver['visa']['data_bits']
+        self._stop_bits = self._driver['visa']['stop_bits']
+        self._parity = str(self._driver['visa']['parity']).replace(' ', '_').lower()
+
     def _initialize_visa_settings(self):
         """Initializes instrument settings using data in driver['VISA settings']"""
-        # timeout in ms
-        self._instrument.timeout = self._driver['visa']['timeout'] * 1000
-        self._instrument.term_chars = self._driver['visa']['term_char']
-        self._instrument.send_end = self._driver['visa']['send_end_on_write']
-
-        # used to determine if errors should be read after every read
-        self._query_errors = self._driver['visa']['query_instr_errors']
+        
+        self._instrument.timeout = self._timeout
+        self._instrument.term_chars = self._term_chars
+        self._instrument.send_end = self._send_end
 
     def _set_serial_values(self):
         """Sets Instrument values for serial instruments"""
@@ -78,10 +142,12 @@ class InstrumentManager:
             self[quantity] = self._driver['quantities'][quantity]['def_value']
 
     def _startup(self):
-        """Sends relavent start up commands to instrument"""
-        self._instrument.write(self._driver['visa']['init'])
+        """Sends relevant start up commands to instrument"""
+        if self._driver['visa']['init']:
+            self._instrument.write(self._driver['visa']['init'])
 
-        _quantities = list(self._driver['quantities'].keys())
+        if self._driver['quantities']:
+            _quantities = list(self._driver['quantities'].keys())
 
         # for quantity in _quantities:
         #     print(quantity)
@@ -327,6 +393,11 @@ class InstrumentManager:
         
         else:
             return value
+
+    def _is_serial_instrument(self):
+        """Does current instrument use serial to communicate?"""
+        interface = self._driver["instrument_interface"]["interface"]
+        return 'ASRL' in interface or 'COM' in interface
 
     def __getitem__(self, quantity):
         return self.get_value(quantity)

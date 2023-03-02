@@ -9,6 +9,8 @@ class INST_INTERFACE(Enum):
     GPIB = 'GPIB'
     TCPIP = 'TCPIP'
     SERIAL = 'SERIAL'
+    ASRL = 'ASRL'
+    COM = 'COM'
 
 class InstrumentConnectionService:
     def __init__(self) -> None:
@@ -93,10 +95,11 @@ class InstrumentConnectionService:
         return self._connected_instruments[cute_name]
 
 
-    def make_conn_str_tcip_instrument(ip_address: str) -> str:
-        '''
-        Example: TCPIP0::192.168.0.7::INSTR 
-        '''
+    def make_conn_str_tcip_instrument(self, ip_address: str) -> str:
+        """
+        Construct a connection string for TCPIP instruments
+        Example: TCPIP0::192.168.0.7::INSTR
+        """
         # Default TCPIP Interface
         TCPIP_INTERFACE = 'TCPIP0'
         END = 'INSTR'
