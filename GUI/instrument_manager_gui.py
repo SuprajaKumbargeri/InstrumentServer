@@ -2,9 +2,9 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea)
 from Insrument.instrument_manager import InstrumentManager
 from GUI.quantity_group_boxes import *
 
-class QuantityManagerGUI(QWidget):
+class InstrumentManagerGUI(QWidget):
     def __init__(self, instrument_manager: InstrumentManager):
-        super(QuantityManagerGUI, self).__init__()
+        super(InstrumentManagerGUI, self).__init__()
 
         scroll_layout = QVBoxLayout()
         widget = QWidget()

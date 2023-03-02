@@ -7,7 +7,7 @@ import requests
 from . import db
 from . import instrument_connection_service
 from GUI.experimentWindowGui import ExperimentWindowGui
-from GUI.quantity_manager_gui import QuantityManagerGUI
+from GUI.instrument_manager_gui import InstrumentManagerGUI
 
 
 ###################################################################################
@@ -350,7 +350,7 @@ class InstrumentServerWindow(QMainWindow):
             QMessageBox.critical(self, 'Unkown Error', e)
             return
 
-        self.quantity_manager_gui = QuantityManagerGUI(instrument_manager)
+        self.quantity_manager_gui = InstrumentManagerGUI(instrument_manager)
 
 
 if __name__ == '__main__':
