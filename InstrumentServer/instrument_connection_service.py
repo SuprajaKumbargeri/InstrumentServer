@@ -57,7 +57,7 @@ class InstrumentConnectionService:
 
         if connection_str is None:
             raise ConnectionError(f"Could not connect to {cute_name}. Unable to find valid connection string.")
-        
+
         # Connect to instrument
         print('Using connection string: {} to connect to {}'.format(connection_str, cute_name))
         try:
@@ -67,18 +67,18 @@ class InstrumentConnectionService:
         # InstrumentManager may throw value error, this service should throw a Connection error
         except ValueError as e:
             raise ConnectionError(e)
-    
+
     def disconnect_instrument(self, cute_name: str):
         if cute_name not in self._connected_instruments.keys():
             raise KeyError(f"{cute_name} is not currently connected.")
 
         del self._connected_instruments[cute_name]
         print(f"Disnonnected {cute_name}.")
-    
+
     def disconnect_all_instruments(self):
         instr_names = list(self._connected_instruments.keys())
         list_of_failures = ()
-        
+
         for instrument_name in instr_names:
             try:
                 self.disconnect_instrument(instrument_name)

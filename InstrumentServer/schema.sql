@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS quantities (
 	show_in_measurement_dlg BOOLEAN,
 	set_cmd TEXT,
 	get_cmd TEXT DEFAULT 'set_cmd?',
+	latest_value TEXT,
 	PRIMARY KEY (cute_name, label)
 );
 

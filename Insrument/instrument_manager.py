@@ -40,9 +40,10 @@ class InstrumentManager:
         # Set these after we have a PyVISA resource (self._instrument)
         self._initialize_visa_settings()
 
-        # TODO: add check for visa instrument
+        if "ASLR" in self._driver["instrument_interface"]["interface"]:
+            self._set_serial_values()
 
-        # checks if model is correct, throws error if not
+            # checks if model is correct, throws error if not
         self._check_model()
         self._startup()
 
@@ -213,7 +214,7 @@ class InstrumentManager:
             quants[quantity]['value'] = self.get_value(quantity)
 
         return quants
-    
+
     @property
     def quantities(self) -> dict:
         """Gets dictionary of all quantities without their values"""
@@ -316,7 +317,7 @@ class InstrumentManager:
             raise ValueError(f"{value} is lower than {quantity}'s lower limit of {lower_lim}.")
         if not upper_lim == '+INF' and value < float(upper_lim):
             raise ValueError(f"{value} is higher than {quantity}'s upper limit of {upper_lim}.")
-        
+
         # check for valid states for Combos
         if self._driver['quantities'][quantity]['data_type'].upper() == 'COMBO':
             if self._driver['quantities'][quantity]['combo_cmd']:
@@ -327,13 +328,13 @@ class InstrumentManager:
 
             if value not in (valid_states or valid_cmds):
                 raise ValueError(f"{value} is not a recognized state of {quantity}'s states. Valid states are {valid_states}.")
-            
+
     def _convert_value(self, quantity, value):
         """Converts given value to pre-defined value in driver or returns the given value is N/A to convert
             Parameters:
                 quantity -- quantity that holds the pre-defined value
                 value -- value that needs converting
-            Returns: 
+            Returns:
                 Converted value
             Raises:
                 ValueError if quantity is a boolean but a boolean value is not provided
@@ -350,17 +351,17 @@ class InstrumentManager:
                 return self._driver['visa']['str_false']
             else:
                 raise ValueError(f"{value} is not a valid boolean value.")
-            
+
         elif quantity_dict['data_type'].upper() == 'COMBO':
             value = value.strip()
             # combo quantity contains no states or commands
             if not quantity_dict['combo_cmd']:
-                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")\
-                
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.") \
+ \
             # if user provided name of the state, convert, else return given value as it is already a valid value for the commandcommand
             if value in (combo.strip() for combo in quantity_dict['combo_cmd'].keys()):
                 return quantity_dict['combo_cmd'][value]
-        
+
         else:
             return value
 

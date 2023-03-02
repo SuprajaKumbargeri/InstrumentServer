@@ -2,7 +2,7 @@ import psycopg2
 from psycopg2.extensions import AsIs
 
 def addInstrumentInterface(connection, ins_interface: dict, manufacturer):
- 
+
     table = 'instruments'
     with connection.cursor() as cursor:
 
@@ -235,3 +235,23 @@ def getQuantities(connection: object, instrument_name: str) -> dict:
             quantities[quantity[0]] = {key : value for key, value in zip(column_names, result[0])}
 
     return quantities
+
+
+def getLatestValue(connection: object, instrument_name: str, label: str) -> str:
+    table = 'quantities'
+    latest_value = None
+    with connection.cursor() as cursor:
+        latest_value_query = "SELECT {column} FROM {table_name} WHERE cute_name = '{cute_name}' and label = '{label}';"\
+            .format(column='latest_value', table_name=table, cute_name=instrument_name, label=label)
+        cursor.execute(latest_value_query)
+        latest_value = cursor.fetchone()[0]
+
+    return latest_value
+
+
+def setLatestValue(connection: object, latest_value: str, instrument_name: str, label: str):
+    table = 'quantities'
+    with connection.cursor() as cursor:
+        query = f"UPDATE {table} SET latest_value = '{latest_value}' WHERE cute_name = '{instrument_name}' and label = '{label}'"
+        cursor.execute(query)
+        connection.commit()
