@@ -15,10 +15,14 @@ class INST_INTERFACE(Enum):
 class InstrumentConnectionService:
     def __init__(self) -> None:
         self._connected_instruments = {}
+
+    def is_connected(self, cute_name: str) -> bool:
+        return cute_name in self._connected_instruments.keys()
+
     def connect_to_visa_instrument(self, cute_name: str):
         """Creates and stores connection to given VISA instrument"""
 
-        if cute_name in self._connected_instruments.keys():
+        if self.is_connected(cute_name):
             raise ValueError(f'{cute_name} is already connected.')
 
         # Use cute_name to determine the interface (hit endpoint for that)
@@ -83,6 +87,12 @@ class InstrumentConnectionService:
 
         if len(list_of_failures) > 0:
             raise Exception(f"Failed to disconnect from the following instruments: {list_of_failures}")
+        
+    def get_instrument_manager(self, cute_name):
+        if cute_name not in self._connected_instruments.keys():
+            raise KeyError(f"{cute_name} is not currently connected.")
+        
+        return self._connected_instruments[cute_name]
 
 
     def make_conn_str_tcip_instrument(self, ip_address: str) -> str:
