@@ -4,7 +4,7 @@ import logging
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
-
+import os
 import db
 import instrument_connection_service
 from GUI.experimentWindowGui import ExperimentWindowGui
@@ -32,8 +32,14 @@ class InstrumentServerWindow(QMainWindow):
         # The parent flask application
         self.flask_app = flask_app
 
-        self.green_icon = QIcon("./Icons/greenIcon.png")
-        self.red_icon = QIcon("./Icons/redIcon.png")
+        # Get the current working directory
+        cwd = os.getcwd()
+
+        # Print the current working directory
+        print("Current working directory: {0}".format(cwd))
+
+        self.green_icon = QIcon("../Icons/greenIcon.png")
+        self.red_icon = QIcon("../Icons/redIcon.png")
 
         # The "top most" layout is vertical box layout (top -> bottom)
         self.main_layout = QVBoxLayout()
@@ -78,7 +84,7 @@ class InstrumentServerWindow(QMainWindow):
         # Setup Additional GUI
         self.experiment_window_gui = ExperimentWindowGui(self)
 
-        self._ics = instrument_connection_service.InstrumentConnectionService()
+        self._ics = instrument_connection_service.InstrumentConnectionService(self.get_logger())
 
         print('Done initializing Instrument Server GUI')
 
