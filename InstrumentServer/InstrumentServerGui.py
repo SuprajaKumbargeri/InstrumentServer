@@ -1,11 +1,12 @@
 import sys
+import requests
+import logging
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
-import requests
 
-from . import db
-from . import instrument_connection_service
+import db
+import instrument_connection_service
 from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
 
@@ -16,8 +17,10 @@ from GUI.instrument_manager_gui import InstrumentManagerGUI
 
 class InstrumentServerWindow(QMainWindow):
 
-    def __init__(self, flask_app):
-        print('Initializing Instrument Server GUI...')
+    def __init__(self, flask_app, logger: logging.Logger):
+
+        self.my_logger = logger
+        self.get_logger().info('Initializing Instrument Server GUI...')
 
         # Convenience flag preventing VISA/DB aspects from being automatically called at startup
         self.dev_machine = False
@@ -26,10 +29,11 @@ class InstrumentServerWindow(QMainWindow):
 
         self.currently_selected_instrument = None
 
+        # The parent flask application
         self.flask_app = flask_app
 
-        self.greenIcon = QIcon("./Icons/greenIcon.png")
-        self.redIcon = QIcon("./Icons/redIcon.png")
+        self.green_icon = QIcon("./Icons/greenIcon.png")
+        self.red_icon = QIcon("./Icons/redIcon.png")
 
         # The "top most" layout is vertical box layout (top -> bottom)
         self.main_layout = QVBoxLayout()
@@ -77,6 +81,10 @@ class InstrumentServerWindow(QMainWindow):
         self._ics = instrument_connection_service.InstrumentConnectionService()
 
         print('Done initializing Instrument Server GUI')
+
+    def get_logger(self):
+        """Get the application logger"""
+        return self.my_logger
 
     def construct_menu(self):
         exit_action = QAction("&Exit", self)
@@ -127,12 +135,12 @@ class InstrumentServerWindow(QMainWindow):
         bottom_button_layout = QHBoxLayout()
 
         add_btn = QPushButton("Add")
-        add_btn.setIcon(self.greenIcon)
+        add_btn.setIcon(self.green_icon)
         add_btn.clicked.connect(self.add_btn_clicked)
         bottom_button_layout.addWidget(add_btn)
 
         remove_btn = QPushButton("Remove")
-        remove_btn.setIcon(self.redIcon)
+        remove_btn.setIcon(self.red_icon)
         remove_btn.clicked.connect(self.remove_btn_clicked)
         bottom_button_layout.addWidget(remove_btn)
 
@@ -165,7 +173,7 @@ class InstrumentServerWindow(QMainWindow):
 
     # Defines exit behavior
     def exit_gui(self):
-        print('Exit was clicked')
+        self.get_logger().debug('Exit was clicked')
         self.close()
 
     # Defines about behavior
@@ -183,27 +191,28 @@ class InstrumentServerWindow(QMainWindow):
         if len(selected_instruments) > 0:
             log_instrument = 'Currently selected instrument: {} {}'.format(selected_instruments[0].text(0),
                                                                            selected_instruments[0].text(1))
-            print(log_instrument)
+
+            self.get_logger().info(log_instrument)
             self.currently_selected_instrument = selected_instruments[0].text(1)
 
     def settings_btn_clicked(self):
-        print('Settings was clicked')
+        self.get_logger().debug('Settings was clicked')
 
     def create_experiment_clicked(self):
-        print('Create Experiment was clicked')
+        self.get_logger().debug('Create Experiment was clicked')
         self.show_experiment_window()
 
     def add_btn_clicked(self):
-        print('Add was clicked')
+        self.get_logger().debug('Add was clicked')
 
     def remove_btn_clicked(self):
-        print('Remove was clicked')
+        self.get_logger().debug('Remove was clicked')
 
     def show_experiment_window(self):
         self.experiment_window_gui.show()
 
     def connect_btn_clicked(self):
-        print('Connect was clicked')
+        self.get_logger().debug('Connect was clicked')
         if not self.currently_selected_instrument:
             QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
             return
@@ -211,19 +220,18 @@ class InstrumentServerWindow(QMainWindow):
         try:
             self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
             current_item = self.instrument_tree.currentItem()
-            print(current_item)
-            current_item.setIcon(0, self.greenIcon)
+            current_item.setIcon(0, self.green_icon)
 
         except ValueError as e:
             QMessageBox.information(self, 'Instrument is already connected.', 'Instrument is already connected.')
 
         except Exception as e:
-            print(e)
+            self.get_logger().fatal(f'There was a problem connecting to instrument: {e}')
             QMessageBox.critical(self, 'ERROR', f'Could not connect to instrument: {e}')
 
     def connect_all_btn_clicked(self):
         """Attmepts to connect all listed instruments"""
-        print('Connect All was clicked')
+        self.get_logger().debug('Connect All was clicked')
 
         failed_connections = []
         
@@ -233,7 +241,7 @@ class InstrumentServerWindow(QMainWindow):
             try:
                 current_item = qtiter.value()
                 self._ics.connect_to_visa_instrument(current_item.text(1))
-                current_item.setIcon(0, self.greenIcon)
+                current_item.setIcon(0, self.green_icon)
             except:
                 failed_connections.append(current_item.text(1))
             qtiter += 1
@@ -247,20 +255,20 @@ class InstrumentServerWindow(QMainWindow):
             self._ics.disconnect_instrument(self.currently_selected_instrument)
 
             current_item = self.instrument_tree.currentItem()
-            current_item.setIcon(0, self.redIcon)
+            current_item.setIcon(0, self.red_icon)
         except KeyError:
             QMessageBox.information(self, 'Instrument is not currently connected.', 'Instrument is not currently connected.')
         except Exception as e:
-            QMessageBox.critical(self, 'Unkown Error', e)
+            QMessageBox.critical(self, 'Unknown Error', e)
 
     def close_all_btn_clicked(self):
-        print('Close All was clicked')
+        self.get_logger().debug('Close All was clicked')
         self._ics.disconnect_all_instruments()
 
         qtiter = QTreeWidgetItemIterator(self.instrument_tree)
         while qtiter.value():
             current_item = qtiter.value()
-            current_item.setIcon(0, self.redIcon)
+            current_item.setIcon(0, self.red_icon)
             qtiter += 1
 
     def closeEvent(self, event):
@@ -277,7 +285,8 @@ class InstrumentServerWindow(QMainWindow):
             self._ics.disconnect_all_instruments()
         except Exception as e:
             # Error disconnecting instruments, ask user if they still want to disconnect
-            print(e)
+            self.get_logger().fatal(f'There was a problem disconnecting all instruments: {e}')
+
             answer = QMessageBox.question(self, "Disconnect Error", f"{e} Do you still want to exit?")
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
@@ -290,13 +299,13 @@ class InstrumentServerWindow(QMainWindow):
 
     def add_instrument_to_list(self, model: str, cute_name: str, address: str) -> None:
         newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, address])
-        newItem.setIcon(0, self.redIcon)
+        newItem.setIcon(0, self.red_icon)
 
     def clear_instrument_list(self):
         """
         Clears the Instrument List 
         """
-        print('Clearing Instrument List...')
+        self.get_logger().debug('Clearing Instrument List...')
         self.instrument_tree.clear()
 
     def get_known_instruments(self):
@@ -320,15 +329,13 @@ class InstrumentServerWindow(QMainWindow):
                         serial = instrument[4]
                         via = instrument[5]
 
-                        print(ip_address)
-
                         # If an IP Address was provided, use it for Address column, otherwise use the Interface
                         self.add_instrument_to_list(manufacturer,
                                                     cute_name,
                                                     (ip_address if ip_address != None else interface))
 
             except Exception as ex:
-                print('There was a problem getting all known instruments {}'.format(ex))
+                self.get_logger().fatal(f'There was a problem getting all known instruments: {ex}')
 
             finally:
                 # Make sure we always close the connection
@@ -347,7 +354,7 @@ class InstrumentServerWindow(QMainWindow):
         try:
             instrument_manager = self._ics.get_instrument_manager(cute_name)
         except Exception as e:
-            QMessageBox.critical(self, 'Unkown Error', e)
+            QMessageBox.critical(self, 'Unknown Error', e)
             return
 
         self.quantity_manager_gui = InstrumentManagerGUI(instrument_manager)

@@ -73,7 +73,7 @@ class InstrumentConnectionService:
             raise KeyError(f"{cute_name} is not currently connected.")
 
         del self._connected_instruments[cute_name]
-        print(f"Disnonnected {cute_name}.")
+        print(f"Disconnected {cute_name}.")
 
     def disconnect_all_instruments(self):
         instr_names = list(self._connected_instruments.keys())
@@ -104,5 +104,5 @@ class InstrumentConnectionService:
         TCPIP_INTERFACE = 'TCPIP0'
         END = 'INSTR'
 
-        return '{}::{}::{}'.format(TCPIP_INTERFACE, ip_address, END)
+        return f'{TCPIP_INTERFACE}::{ip_address}::{END}'
     
