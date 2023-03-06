@@ -111,3 +111,21 @@ class InstrumentConnectionService:
 
         return f'{TCPIP_INTERFACE}::{ip_address}::{END}'
     
+    def add_instrument_to_database(self, details: dict):
+        url = r'http://127.0.0.1:5000/instrumentDB/addInstrument'
+        response = requests.post(url, json=details)
+        if 300 > response.status_code <= 200:
+            return True, response.json()
+        else:
+            return False, response.json()
+        
+    def remove_instrument_from_database(self, cute_name: str):
+        self.disconnect_instrument(cute_name)
+        
+        url = r'http://127.0.0.1:5000/instrumentDB/removeInstrument'
+        response = requests.get(url, params={'cute_name': cute_name})
+        if 300 > response.status_code <= 200:
+            return "Instrument removed."
+        else:
+            print(response.raise_for_status())
+        return "Failed to remove the instrument."
