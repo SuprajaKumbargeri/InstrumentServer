@@ -8,8 +8,8 @@ import requests
 from flask import Blueprint, jsonify
 from werkzeug.exceptions import (abort, BadRequestKeyError)
 
-from . import db, instrumentDBService as ids
-from . import driverParser as dp
+import db, instrumentDBService as ids
+import driverParser as dp
 
 
 bp = Blueprint("instrumentDB", __name__,  url_prefix='/instrumentDB')

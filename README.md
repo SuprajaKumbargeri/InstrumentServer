@@ -5,25 +5,28 @@ Python Flask based server handling all communication between instruments &amp; c
 Since PyVISA is used, you need to have a suitable VISA backend. PyVISA includes a backend that wraps the National Instruments’s VISA library. 
 Download and install the NI-VISA library: [NI-VISA](https://www.ni.com/en-us/support/downloads/drivers/download.ni-visa.html#460225)
 
-### Setup
+### Setup:
 1. Run `setupEnv.bat`
 2. Once in the virtual enviroment "venv", run `installPackages.bat`
 
-### Run
-`flask --app InstrumentServer run --with-threads`
+### Run Instrument Server:
+Starts on localhost (`127.0.0.1`) and port: `5000`. Threading enabled by default. <br> <br>
+Just run: `__init__.py`
 
-### Run with debugging (avoid for now)
+### Previous deploy method:
+`flask --app InstrumentServer run --with-threads` <br>
 `flask --app InstrumentServer --debug run`
 
 # Instrument Database
-PostgreSQL database with parsed details from instrument driver
+PostgresSQL database with parsed details from instrument driver
 
-### Connection details
+### Connection details:
 - Host: localhost  
 - Port: 5432  
 - Username: postgres  
 - Password: 1234  
 - Database name: instrument_db  
 
-### Connect with Command Prompt
+### Connect with Command Prompt:
+Default schema: `public` <br>
 `psql -h localhost -p 5432 -U postgres instrument_db`
