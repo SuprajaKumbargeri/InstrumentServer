@@ -214,7 +214,7 @@ class InstrumentServerWindow(QMainWindow):
                    "serial": str(dlg.serial_check.isChecked()),
                    "visa": str(dlg.visa_check.isChecked()),
                    "path": dlg.path_line.text()}
-                connect_result, msg = instrument_connection_service.add_instrument_to_database(details)
+                connect_result, msg = self._ics.add_instrument_to_database(details)
                 
                 if not connect_result: msg = "Failed. " + msg
                 msgBox = QMessageBox(self)
@@ -231,7 +231,7 @@ class InstrumentServerWindow(QMainWindow):
                                       "Are you sure you want to remove the instrument '{}'?".format(self.currently_selected_instrument))
         
         if button == QMessageBox.StandardButton.Yes:
-            msg = instrument_connection_service.remove_instrument_from_database(self.currently_selected_instrument)
+            msg = self._ics.remove_instrument_from_database(self.currently_selected_instrument)
             msgBox = QMessageBox(self)
             msgBox.setWindowTitle("Status")
             msgBox.setText(msg)
