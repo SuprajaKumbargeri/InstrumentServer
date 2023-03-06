@@ -7,7 +7,7 @@ from configparser import RawConfigParser
 from flask import (Blueprint, jsonify)
 from werkzeug.exceptions import (abort, BadRequestKeyError)
 
-from . import driverParserService as dps
+import driverParserService as dps
 
 bp = Blueprint("driverParser", __name__,  url_prefix='/driverParser')
 ini_path = None
