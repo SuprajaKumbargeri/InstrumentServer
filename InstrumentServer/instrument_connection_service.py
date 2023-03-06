@@ -70,7 +70,7 @@ class InstrumentConnectionService:
 
     def disconnect_instrument(self, cute_name: str):
         if cute_name not in self._connected_instruments.keys():
-            raise KeyError(f"{cute_name} is not currently connected.")
+            return
 
         del self._connected_instruments[cute_name]
         print(f"Disnonnected {cute_name}.")
