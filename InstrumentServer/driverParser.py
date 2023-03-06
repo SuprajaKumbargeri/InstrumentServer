@@ -11,7 +11,6 @@ from . import driverParserService as dps
 
 bp = Blueprint("driverParser", __name__,  url_prefix='/driverParser')
 ini_path = None
-config = RawConfigParser()
 
 
 def setLogger(logger: logging.Logger):
@@ -20,14 +19,13 @@ def setLogger(logger: logging.Logger):
 
 
 '''Parses driver from a given local path. Returns dictionary of the driver contents'''
-@bp.route('/')
+@bp.route('/', methods = ['POST'])
 def parseDriver():
     try:
         global ini_path
-        ini_path = request.form['driverPath']
+        ini_path = request.get_json()
 
-
-
+        config = RawConfigParser()
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
         model_options = dps.getModelOptions(dict(config['Model and options']))
@@ -43,11 +41,12 @@ def parseDriver():
 
 
 @bp.route('/addDriver')
-def addDriver(ini_path):
+def addDriver():
     try:
-        #global ini_path
-        #ini_path = request.form['driverPath']
+        global ini_path
+        ini_path = request.form['driverPath']
         
+        config = RawConfigParser()
         config.read(ini_path)
         gen_settings = dps.getGenSettings(dict(config['General settings']), ini_path)
         model_options = dps.getModelOptions(dict(config['Model and options']))
@@ -55,9 +54,7 @@ def addDriver(ini_path):
         quantities = dps.getQuantities({key: value for key, value in config._sections.items()\
                 if key not in ('General settings', 'Model and options', 'VISA settings')})
         return {'general_settings': gen_settings, 'model_and_options': model_options, 'visa': visa_settings, 'quantities': quantities}, 200
-        #return redirect(url_for('instrumentDB.addInstrument', details = json.dumps({'general_settings': gen_settings, 
-        #'model_and_options': model_options, 'visa': visa_settings, 'quantities': quantities})))
-
+        
     except Exception as e:
         my_logger.error(e.args)
         return jsonify(e.args), 400
