@@ -66,7 +66,7 @@ class InstrumentConnectionService:
         # Connect to instrument
         self.get_logger().debug('Using connection string: {connection_str} to connect to {cute_name}')
         try:
-            im = InstrumentManager(cute_name, connection_str)
+            im = InstrumentManager(cute_name, connection_str, self._my_logger)
             self._connected_instruments[cute_name] = im
             self.get_logger().debug(f"Connected to {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error

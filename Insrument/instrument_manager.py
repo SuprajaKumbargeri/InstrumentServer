@@ -15,8 +15,9 @@ TERM_CHAR = Enum('TERM_CHAR',
 # InstrumentManager
 ###################################################################################
 class InstrumentManager:
-    def __init__(self, name, connection):
+    def __init__(self, name, connection, logger):
         self._name = name
+        self._logger = logger
         self._instrument = None
         self._driver = None
         self._timeout = 1000.0
@@ -48,7 +49,7 @@ class InstrumentManager:
         self._startup()
 
     def _get_driver(self):
-        print('Getting the driver...')
+        self._logger.debug('Getting the driver...')
         """Communicates with instrument server to get driver for instrument"""
         # implementation will likely change
         url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
@@ -60,18 +61,18 @@ class InstrumentManager:
             response.raise_for_status()
 
     def _initialize_instrument(self, connection):
-        print('Connecting to instrument...')
+        self._logger.debug('Connecting to instrument...')
         """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
         # string passed through in VISA form
         if isinstance(connection, str):
             self._rm = ResourceManager()
-            print('Got ResourceManager...')
+            self._logger.debug('Got ResourceManager...')
 
             if self._is_serial_instrument():
                 # The actual terminating chars as str
                 read_term = str(TERM_CHAR[self._term_chars].value)
 
-                print('Using the following parameters to connect to serial VISA instrument: resource_name={}, '
+                self._logger.debug('Using the following parameters to connect to serial VISA instrument: resource_name={}, '
                       'read_termination={}, baud_rate={}'.format(connection,
                                                                  TERM_CHAR[self._term_chars],
                                                                  self._baud_rate))
@@ -81,7 +82,7 @@ class InstrumentManager:
                                                           read_termination=read_term,
                                                           baud_rate=self._baud_rate)
             else:
-                print('Connecting to VISA instrument: {} using: {}'.format(self.name, connection))
+                self._logger.debug('Connecting to VISA instrument: {} using: {}'.format(self.name, connection))
                 self._instrument = self._rm.open_resource(connection)
 
         # TODO: allow for user defined instrument class
@@ -102,7 +103,7 @@ class InstrumentManager:
         raise ValueError(f"No model listed in ['Models and options'] match the instruments model: '{instrID}'")
 
     def _get_visa_settings(self):
-        print('Getting visa settings...')
+        self._logger.debug('Getting visa settings...')
         """Gets instrument settings using data in driver['VISA settings']"""
         if self._driver is not None:
             # timeout in ms
@@ -113,7 +114,7 @@ class InstrumentManager:
             # used to determine if errors should be read after every read
             self._query_errors = self._driver['visa']['query_instr_errors']
         else:
-            print('Driver dictionary is not defined!')
+            self._logger.warning('Driver dictionary is not defined!')
 
     def _get_serial_values(self):
         """Gets Instrument values for serial instruments"""
@@ -143,6 +144,8 @@ class InstrumentManager:
 
         if self._driver['quantities']:
             _quantities = list(self._driver['quantities'].keys())
+        else:
+            return
 
         for quantity in _quantities:
             self.set_default_value(quantity)
