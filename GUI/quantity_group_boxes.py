@@ -3,7 +3,7 @@ from PyQt6.QtGui import QFont
 from typing import Callable
 
 class QuantityGroupBox(QtW.QGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__()
         self.quantity_info = quantity_info
         self.set_value_method = set_value_method
@@ -12,7 +12,7 @@ class QuantityGroupBox(QtW.QGroupBox):
         self.v_layout = QtW.QVBoxLayout()
 
         self.label = QtW.QLabel()
-        self.label.setText(quantity_info["name"])
+        self.label.setText(quantity_info['label'])
         font = QFont()
         font.setBold(True)
         self.label.setFont(font)
@@ -35,6 +35,16 @@ class QuantityGroupBox(QtW.QGroupBox):
         """Returns current value of the quantity by the given QWidget. Should be implemented by child class"""
         raise NotImplementedError()
 
+    @property
+    def state_quant(self):
+        """Returns quantity that controls self's visibility"""
+        return self.quantity_info['state_quant']
+
+    @property
+    def state_values(self):
+        """Returns state values associated with state_quant for when self is visible"""
+        return self.quantity_info['state_values']
+
     def set_value(self):
         self.set_value_method(self.quantity_info['name'], self.value)
 
@@ -52,7 +62,7 @@ class QuantityGroupBox(QtW.QGroupBox):
 
 
 class BooleanGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
         # Create butto group and connect to method
@@ -63,8 +73,10 @@ class BooleanGroupBox(QuantityGroupBox):
         # add radio buttons to group
         self.true_radio_button = QtW.QRadioButton("True")
         self.group.addButton(self.true_radio_button)
+        self.true_radio_button.setToolTip(self.quantity_info['tool_tip'])
         self.false_radio_button = QtW.QRadioButton("False")
         self.group.addButton(self.false_radio_button)
+        self.false_radio_button.setToolTip(self.quantity_info['tool_tip'])
 
         self.h_layout.addWidget(self.true_radio_button)
         self.h_layout.addWidget(self.false_radio_button)
@@ -93,16 +105,19 @@ class BooleanGroupBox(QuantityGroupBox):
 
 
 class ButtonGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
 
 class ComboGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 on_value_change: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
+        self.on_value_change = on_value_change
 
         self.combo_box = QtW.QComboBox()
-        self.combo_box.addItems(quantity_info['combos'])
+        self.combo_box.addItems(self.quantity_info['combos'])
+        self.combo_box.setToolTip(self.quantity_info['tool_tip'])
 
         self.h_layout.addWidget(self.combo_box)
         self.h_layout.addWidget(self.set_value_btn)
@@ -116,18 +131,24 @@ class ComboGroupBox(QuantityGroupBox):
     @QuantityGroupBox.value.getter
     def value(self):
         return self.combo_box.currentText()
-    
+
+    def set_value(self):
+        """Overrides and calls QuantityGroup set_value. Afterwards, it calls the handler method that was passed through
+        at instantiation"""
+        super().set_value()
+        self.on_value_change(self.quantity_info['name'], self.value)
+
     def handle_incoming_value(self, value):
         self.combo_box.setCurrentText(value)
 
 
 class ComplexGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
 
 class DoubleGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
         self.spin_box = QtW.QDoubleSpinBox()
@@ -137,7 +158,8 @@ class DoubleGroupBox(QuantityGroupBox):
         max = float(quantity_info["high_lim"])
         self.spin_box.setMinimum(min)
         self.spin_box.setMaximum(max)
-        self.spin_box.setSuffix(quantity_info['unit'])
+        self.spin_box.setSuffix(f" {self.quantity_info['unit']}")
+        self.spin_box.setToolTip(self.quantity_info['tool_tip'])
 
         self.h_layout.addWidget(self.spin_box)
         self.h_layout.addWidget(self.set_value_btn)
@@ -160,33 +182,34 @@ class DoubleGroupBox(QuantityGroupBox):
         
 
 class PathGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
 
 class StringGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
 
 class VectorGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
 
 class VectorComplexGroupBox(QuantityGroupBox):
-    def __init__(self, quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
 
-def quantity_group_box_factory(quantity_info: dict[dict], set_value_method: Callable, get_value_method: Callable):
+def quantity_group_box_factory(quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                               on_value_change: Callable = None):
     match quantity_info['data_type'].upper():
         case 'BOOLEAN':
             return BooleanGroupBox(quantity_info, set_value_method, get_value_method)
         case 'BUTTON':
             return ButtonGroupBox(quantity_info, set_value_method, get_value_method)
         case 'COMBO':
-            return ComboGroupBox(quantity_info, set_value_method, get_value_method)
+            return ComboGroupBox(quantity_info, set_value_method, get_value_method, on_value_change)
         case 'COMPLEX':
             return ComplexGroupBox(quantity_info, set_value_method, get_value_method)
         case 'DOUBLE':
