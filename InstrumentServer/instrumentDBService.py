@@ -1,3 +1,4 @@
+import json
 import psycopg2
 from psycopg2.extensions import AsIs
 
@@ -6,11 +7,11 @@ def addInstrumentInterface(connection, ins_interface: dict, manufacturer):
     table = 'instruments'
     with connection.cursor() as cursor:
 
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         columns, values = [], []
-
+        
         for column_name in column_names:
             if column_name[0] in ins_interface.keys():
                 if ins_interface[column_name[0]]:
@@ -30,7 +31,7 @@ def addGenSettings(connection, gen_settings: dict, cute_name):
 
     with connection.cursor() as cursor:
 
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         columns, values = [], []
@@ -52,7 +53,7 @@ def addModelOptions(connection, model_options: dict, cute_name):
     table = 'model_and_options'
     with connection.cursor() as cursor:
 
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         columns, values = [], []
@@ -88,7 +89,7 @@ def addVisaSettings(connection, visa_settings: dict, cute_name):
     table = 'visa'
     with connection.cursor() as cursor:
 
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         columns, values = [], []
@@ -109,11 +110,11 @@ def addQuantity(connection, quantity: dict, cute_name):
     table = 'quantities'
     with connection.cursor() as cursor:
 
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)           
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
-        columns, values = [], []        
-
+        columns, values = [], []
+        
         for column_name in column_names:
             if column_name[0] in quantity.keys():             
                 if column_name[0] == 'state_values':
@@ -129,7 +130,13 @@ def addQuantity(connection, quantity: dict, cute_name):
                 elif column_name[0] == 'option_values':
                     columns.append('option_values')
                     option_values = '{' + ','.join(quantity['option_values']) + '}'
-                    values.append(option_values)                    
+                    values.append(option_values)
+
+                elif column_name[0] == 'combo_cmd':
+                    columns.append('combo_cmd')
+                    combo_cmd = json.dumps(quantity['combo_cmd'])
+                    values.append(combo_cmd)
+
 
                 elif quantity[column_name[0]]:
                     columns.append(column_name[0])
@@ -145,7 +152,7 @@ def getInstrumentInterface(connection: object, instrument_name: str) -> dict:
     table = 'instruments'
     general_settings = {}
     with connection.cursor() as cursor:
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
@@ -162,7 +169,7 @@ def getGenSettings(connection: object, instrument_name: str) -> dict:
     table = 'general_settings'
     general_settings = {}
     with connection.cursor() as cursor:
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
@@ -181,7 +188,7 @@ def getModelOptions(connection: object, instrument_name: str) -> dict:
     model_options = {}
 
     with connection.cursor() as cursor:
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
@@ -201,7 +208,7 @@ def getVisaSettings(connection: object, instrument_name: str) -> dict:
     table = 'visa'
     visa_settings = {}
     with connection.cursor() as cursor:
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
@@ -219,7 +226,7 @@ def getQuantities(connection: object, instrument_name: str) -> dict:
     table = 'quantities'
     quantities = {}
     with connection.cursor() as cursor:
-        column_names_query = "SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
+        column_names_query = "SELECT DISTINCT column_name FROM information_schema.columns WHERE table_name = '{table_name}';".format(table_name=table)            
         cursor.execute(column_names_query)
         column_names = cursor.fetchall()
         column_names = tuple(column_name[0] for column_name in column_names)
@@ -255,3 +262,11 @@ def setLatestValue(connection: object, latest_value: str, instrument_name: str, 
         query = f"UPDATE {table} SET latest_value = '{latest_value}' WHERE cute_name = '{instrument_name}' and label = '{label}'"
         cursor.execute(query)
         connection.commit()
+
+def deleteInstrument(connection: object, cute_name: str):
+    table_names = ['general_settings', 'model_and_options', 'visa', 'quantities', 'instruments']
+    with connection.cursor() as cursor:
+        for table in table_names:
+            delete_instrument_query = "DELETE FROM {table_name} WHERE cute_name = '{cute_name}';".format(table_name = table, cute_name = cute_name)
+            cursor.execute(delete_instrument_query)
+            connection.commit()

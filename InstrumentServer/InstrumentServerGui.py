@@ -1,12 +1,14 @@
 import sys
+import requests
+import logging
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
-import requests
-
-from . import db
-from . import instrument_connection_service
+import os
+import db
+import instrument_connection_service
 from GUI.experimentWindowGui import ExperimentWindowGui
+from GUI.instrument_manager_gui import InstrumentManagerGUI
 
 
 ###################################################################################
@@ -15,8 +17,10 @@ from GUI.experimentWindowGui import ExperimentWindowGui
 
 class InstrumentServerWindow(QMainWindow):
 
-    def __init__(self, flask_app):
-        print('Initializing Instrument Server GUI...')
+    def __init__(self, flask_app, logger: logging.Logger):
+
+        self.my_logger = logger
+        self.get_logger().info('Initializing Instrument Server GUI...')
 
         # Convenience flag preventing VISA/DB aspects from being automatically called at startup
         self.dev_machine = False
@@ -27,10 +31,17 @@ class InstrumentServerWindow(QMainWindow):
 
         self.currently_selected_instrument = None
 
+        # The parent flask application
         self.flask_app = flask_app
 
-        self.greenIcon = QIcon("./Icons/greenIcon.png")
-        self.redIcon = QIcon("./Icons/redIcon.png")
+        # Get the current working directory
+        cwd = os.getcwd()
+
+        # Print the current working directory
+        print("Current working directory: {0}".format(cwd))
+
+        self.green_icon = QIcon("../Icons/greenIcon.png")
+        self.red_icon = QIcon("../Icons/redIcon.png")
 
         # The "top most" layout is vertical box layout (top -> bottom)
         self.main_layout = QVBoxLayout()
@@ -61,6 +72,8 @@ class InstrumentServerWindow(QMainWindow):
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
 
+        self.instrument_tree.itemDoubleClicked.connect(self.show_quantity_manager_gui)
+
         self.construct_bottom_buttons()
         self.construct_instrument_server_status()
 
@@ -70,12 +83,16 @@ class InstrumentServerWindow(QMainWindow):
         # Set the central widget
         self.setCentralWidget(self.main_widget)
 
-        # Setup Experiment GUI
+        # Setup Additional GUI
         self.experiment_window_gui = ExperimentWindowGui(self)
 
-        self._ics = instrument_connection_service.InstrumentConnectionService()
+        self._ics = instrument_connection_service.InstrumentConnectionService(self.get_logger())
 
         print('Done initializing Instrument Server GUI')
+
+    def get_logger(self):
+        """Get the application logger"""
+        return self.my_logger
 
     def construct_menu(self):
         exit_action = QAction("&Exit", self)
@@ -126,12 +143,12 @@ class InstrumentServerWindow(QMainWindow):
         bottom_button_layout = QHBoxLayout()
 
         add_btn = QPushButton("Add")
-        add_btn.setIcon(self.greenIcon)
+        add_btn.setIcon(self.green_icon)
         add_btn.clicked.connect(self.add_btn_clicked)
         bottom_button_layout.addWidget(add_btn)
 
         remove_btn = QPushButton("Remove")
-        remove_btn.setIcon(self.redIcon)
+        remove_btn.setIcon(self.red_icon)
         remove_btn.clicked.connect(self.remove_btn_clicked)
         bottom_button_layout.addWidget(remove_btn)
 
@@ -164,7 +181,7 @@ class InstrumentServerWindow(QMainWindow):
 
     # Defines exit behavior
     def exit_gui(self):
-        print('Exit was clicked')
+        self.get_logger().debug('Exit was clicked')
         self.close()
 
     # Defines about behavior
@@ -182,27 +199,67 @@ class InstrumentServerWindow(QMainWindow):
         if len(selected_instruments) > 0:
             log_instrument = 'Currently selected instrument: {} {}'.format(selected_instruments[0].text(0),
                                                                            selected_instruments[0].text(1))
-            print(log_instrument)
+
+            self.get_logger().info(log_instrument)
             self.currently_selected_instrument = selected_instruments[0].text(1)
 
     def settings_btn_clicked(self):
-        print('Settings was clicked')
+        self.get_logger().debug('Settings was clicked')
 
     def create_experiment_clicked(self):
-        print('Create Experiment was clicked')
+        self.get_logger().debug('Create Experiment was clicked')
         self.show_experiment_window()
 
     def add_btn_clicked(self):
         print('Add was clicked')
+        dlg = AddInstrumentWindow()
+
+        if dlg.exec():
+            if not dlg.name_line.text() or not dlg.path_line.text() or (dlg.interface_choice.currentText() == "TCPIP" and not dlg.address_line.text()):
+                msgBox = QMessageBox(self)
+                msg = "Failed to add instrument. Please provide complete details."
+                msgBox.setWindowTitle("Add Instrument")
+                msgBox.setText(msg)
+                msgBox.exec()
+                print('Failed')
+
+            else:
+                if dlg.interface_choice.currentText() != "TCPIP": dlg.address_line.setText("")
+                details = {"cute_name": dlg.name_line.text().strip(),
+                   "interface": dlg.interface_choice.currentText(),
+                   "ip_address": dlg.address_line.text().strip(),
+                   "serial": str(dlg.serial_check.isChecked()),
+                   "visa": str(dlg.visa_check.isChecked()),
+                   "path": dlg.path_line.text()}
+                connect_result, msg = self._ics.add_instrument_to_database(details)
+
+                if not connect_result: msg = "Failed. " + msg
+                msgBox = QMessageBox(self)
+                msgBox.setWindowTitle("Status")
+                msgBox.setText(msg)
+                msgBox.exec()
+                self.get_known_instruments()
+        else:
+            print('Cancelled')
 
     def remove_btn_clicked(self):
         print('Remove was clicked')
+        button = QMessageBox.question(self, "Remove Instrument",
+                                      "Are you sure you want to remove the instrument '{}'?".format(self.currently_selected_instrument))
+
+        if button == QMessageBox.StandardButton.Yes:
+            msg = self._ics.remove_instrument_from_database(self.currently_selected_instrument)
+            msgBox = QMessageBox(self)
+            msgBox.setWindowTitle("Status")
+            msgBox.setText(msg)
+            msgBox.exec()
+            self.get_known_instruments()
 
     def show_experiment_window(self):
         self.experiment_window_gui.show()
 
     def connect_btn_clicked(self):
-        print('Connect was clicked')
+        self.get_logger().debug('Connect was clicked')
         if not self.currently_selected_instrument:
             QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
             return
@@ -214,19 +271,18 @@ class InstrumentServerWindow(QMainWindow):
                 self._ics.connect_to_none_visa_instrument(self.currently_selected_instrument)
 
             current_item = self.instrument_tree.currentItem()
-            print(current_item)
-            current_item.setIcon(0, self.greenIcon)
+            current_item.setIcon(0, self.green_icon)
 
         except ValueError as e:
             QMessageBox.information(self, 'Instrument is already connected.', 'Instrument is already connected.')
 
         except Exception as e:
-            print(e)
+            self.get_logger().fatal(f'There was a problem connecting to instrument: {e}')
             QMessageBox.critical(self, 'ERROR', f'Could not connect to instrument: {e}')
 
     def connect_all_btn_clicked(self):
         """Attmepts to connect all listed instruments"""
-        print('Connect All was clicked')
+        self.get_logger().debug('Connect All was clicked')
 
         failed_connections = []
         
@@ -236,7 +292,7 @@ class InstrumentServerWindow(QMainWindow):
             try:
                 current_item = qtiter.value()
                 self._ics.connect_to_visa_instrument(current_item.text(1))
-                current_item.setIcon(0, self.greenIcon)
+                current_item.setIcon(0, self.green_icon)
             except:
                 failed_connections.append(current_item.text(1))
             qtiter += 1
@@ -250,22 +306,21 @@ class InstrumentServerWindow(QMainWindow):
             self._ics.disconnect_instrument(self.currently_selected_instrument)
 
             current_item = self.instrument_tree.currentItem()
-            current_item.setIcon(0, self.redIcon)
+            current_item.setIcon(0, self.red_icon)
         except KeyError:
             QMessageBox.information(self, 'Instrument is not currently connected.', 'Instrument is not currently connected.')
         except Exception as e:
-            QMessageBox.critical(self, 'Unkown Error', e)
+            QMessageBox.critical(self, 'Unknown Error', e)
 
     def close_all_btn_clicked(self):
-        print('Close All was clicked')
+        self.get_logger().debug('Close All was clicked')
         self._ics.disconnect_all_instruments()
 
         qtiter = QTreeWidgetItemIterator(self.instrument_tree)
         while qtiter.value():
             current_item = qtiter.value()
-            current_item.setIcon(0, self.redIcon)
+            current_item.setIcon(0, self.red_icon)
             qtiter += 1
-            
 
     def closeEvent(self, event):
         """Overrides closeEvent so that we throw a Dialogue question whether to exit or not."""
@@ -281,7 +336,8 @@ class InstrumentServerWindow(QMainWindow):
             self._ics.disconnect_all_instruments()
         except Exception as e:
             # Error disconnecting instruments, ask user if they still want to disconnect
-            print(e)
+            self.get_logger().fatal(f'There was a problem disconnecting all instruments: {e}')
+
             answer = QMessageBox.question(self, "Disconnect Error", f"{e} Do you still want to exit?")
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
@@ -294,17 +350,16 @@ class InstrumentServerWindow(QMainWindow):
 
     def add_instrument_to_list(self, model: str, cute_name: str, address: str) -> None:
         newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, address])
-        newItem.setIcon(0, self.redIcon)
+        newItem.setIcon(0, self.red_icon)
 
     def clear_instrument_list(self):
         """
         Clears the Instrument List 
         """
-        print('Clearing Instrument List...')
+        self.get_logger().debug('Clearing Instrument List...')
         self.instrument_tree.clear()
 
     def get_known_instruments(self):
-
         self.clear_instrument_list()
         connection = None
 
@@ -338,14 +393,96 @@ class InstrumentServerWindow(QMainWindow):
                                                     (ip_address if ip_address != None else interface))
 
             except Exception as ex:
-                print('There was a problem getting all known instruments {}'.format(ex))
+                self.get_logger().fatal(f'There was a problem getting all known instruments: {ex}')
 
             finally:
                 # Make sure we always close the connection
                 db.close_db(connection)
 
+    # Decorator allows method to know which item was double clicked, we can ignore column in this case
+    @pyqtSlot(QTreeWidgetItem, int)
+    def show_quantity_manager_gui(self, item, column):
+        cute_name = item.text(1)
 
+        # do nothing if not connected
+        if not self._ics.is_connected(cute_name):
+            self.connect_btn_clicked()
+            return
 
+        try:
+            instrument_manager = self._ics.get_instrument_manager(cute_name)
+        except Exception as e:
+            QMessageBox.critical(self, 'Unknown Error', e)
+            return
+
+        self.quantity_manager_gui = InstrumentManagerGUI(instrument_manager)
+
+class AddInstrumentWindow(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Add Instrument")
+
+        # Box 1 for driver file input
+        self.file_message = QLabel("File path:")
+        self.path_line = QLineEdit()
+        self.filebutton = QPushButton("Select File")
+        self.filebutton.clicked.connect(self.getFilePath)
+
+        file_input_hbox = QHBoxLayout()
+        file_input_hbox.addWidget(self.path_line)
+        file_input_hbox.addWidget(self.filebutton)
+
+        file_input_vbox = QVBoxLayout()
+        file_input_vbox.addWidget(self.file_message)
+        file_input_vbox.addLayout(file_input_hbox)
+
+        self.file_group_box = QGroupBox("Instrument Driver")
+        self.file_group_box.setLayout(file_input_vbox)
+
+        # Box 2 for communication input
+        self.name_line = QLineEdit()
+        self.interface_choice = QComboBox()
+        self.interface_choice.addItems(["TCPIP", "USB", "GPIB"])
+        self.address_line = QLineEdit()
+
+        comm_form_layout = QFormLayout()
+        comm_form_layout.addRow(QLabel("Name:"), self.name_line)
+        comm_form_layout.addRow(QLabel("Interface:"), self.interface_choice)
+        comm_form_layout.addRow(QLabel("Address:"), self.address_line)
+
+        self.serial_check = QCheckBox("Serial")
+        self.visa_check = QCheckBox("VISA instrument")
+
+        comm_input_hbox = QHBoxLayout()
+        comm_input_hbox.addWidget(self.serial_check)
+        comm_input_hbox.addWidget(self.visa_check)
+
+        comm_input_vbox = QVBoxLayout()
+        comm_input_vbox.addLayout(comm_form_layout)
+        comm_input_vbox.addLayout(comm_input_hbox)
+
+        self.comm_group_box = QGroupBox("Communication")
+        self.comm_group_box.setLayout(comm_input_vbox)
+
+        # Box 3 for Ok and Cancel inputs
+        question_buttons = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        self.button_box = QDialogButtonBox(question_buttons)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.file_group_box)
+        self.layout.addWidget(self.comm_group_box)
+        self.layout.addWidget(self.button_box)
+
+        self.setLayout(self.layout)
+        self.setFixedWidth(400)
+
+    def getFilePath(self):
+        file_filter = 'Configuration File (*.ini);; Python File (*.py)'
+        initial_filter = 'Configuration File (*.ini)'
+        fileName = QFileDialog.getOpenFileName(parent = self, caption = "Select File", directory = "C:\\", filter = file_filter, initialFilter = initial_filter )
+        self.path_line.setText(fileName[0])
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
