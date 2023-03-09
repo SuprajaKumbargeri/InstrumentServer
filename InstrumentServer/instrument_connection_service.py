@@ -145,8 +145,9 @@ class InstrumentConnectionService:
             return False, response.json()
         
     def remove_instrument_from_database(self, cute_name: str):
-        self.disconnect_instrument(cute_name)
-        
+        # even if instrument is not connected, still remove it
+        if cute_name in self._connected_instruments.keys():
+            self.disconnect_instrument(cute_name)
         url = r'http://127.0.0.1:5000/instrumentDB/removeInstrument'
         response = requests.get(url, params={'cute_name': cute_name})
         if 300 > response.status_code <= 200:
