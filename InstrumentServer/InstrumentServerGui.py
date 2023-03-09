@@ -267,11 +267,12 @@ class InstrumentServerWindow(QMainWindow):
         try:
             if self.instrument_type[self.currently_selected_instrument] == "VISA":
                 self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
+                current_item = self.instrument_tree.currentItem()
+                current_item.setIcon(0, self.green_icon)
             else:
                 self._ics.connect_to_none_visa_instrument(self.currently_selected_instrument)
-
-            current_item = self.instrument_tree.currentItem()
-            current_item.setIcon(0, self.green_icon)
+                current_item = self.instrument_tree.currentItem()
+                current_item.setIcon(0, self.green_icon)
 
         except ValueError as e:
             QMessageBox.information(self, 'Instrument is already connected.', 'Instrument is already connected.')
@@ -291,7 +292,10 @@ class InstrumentServerWindow(QMainWindow):
         while qtiter.value():
             try:
                 current_item = qtiter.value()
-                self._ics.connect_to_visa_instrument(current_item.text(1))
+                if self.instrument_type[current_item.text(1)] == "VISA":
+                    self._ics.connect_to_visa_instrument(current_item.text(1))
+                else:
+                    self._ics.connect_to_none_visa_instrument(current_item.text(1))
                 current_item.setIcon(0, self.green_icon)
             except:
                 failed_connections.append(current_item.text(1))

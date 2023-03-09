@@ -2,8 +2,8 @@ import pyvisa
 import requests
 import logging
 from enum import Enum
-from Insrument.instrument_manager import InstrumentManager
-from Insrument.picoscope_manager import PicoscopeManager
+from Instrument.instrument_manager import InstrumentManager
+from Instrument.picoscope_manager import PicoscopeManager
 
 class INST_INTERFACE(Enum):
     USB = 'USB'
@@ -89,36 +89,10 @@ class InstrumentConnectionService:
             response.raise_for_status()
 
         response_dict = dict(response.json())
-        # interface = response_dict['instrument_interface']['interface']
-        #
-        # # Might be None
-        # ip_address = response_dict['instrument_interface']['ip_address']
-        # print('Cute_name {} uses interface: {}'.format(cute_name, interface))
-        #
-        # # Get list of resources to compare to
-        # rm = pyvisa.ResourceManager()
-        # resources = rm.list_resources()
-        # connection_str = None
-        #
-        # if interface == INST_INTERFACE.TCPIP.name:
-        #     print('TCPIP instrument IP address is {}'.format(ip_address))
-        #     connection_str = self.make_conn_str_tcip_instrument(ip_address)
-        # else:
-        #     # Get the connection string (used to get PyVISA resource)
-        #     for resource in resources:
-        #         if interface in resource:
-        #             connection_str = resource
-        #             break
-        #
-        # if connection_str is None:
-        #     raise ConnectionError(f"Could not connect to {cute_name}. Unable to find valid connection string.")
-
-        # Connect to instrument
-        # print('Using connection string: {} to connect to {}'.format(connection_str, cute_name))
         try:
             pm = PicoscopeManager(cute_name, response_dict)
             self._connected_instruments[cute_name] = pm
-            print(f"Connected to {cute_name}.")
+            self.get_logger().debug(f"Connected to {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
         except ValueError as e:
             raise ConnectionError(e)

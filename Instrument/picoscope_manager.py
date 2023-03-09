@@ -26,6 +26,7 @@ class PicoscopeManager:
 
     def _initialize_picoscope(self):
         # string passed through in VISA form
+        print("Connecting to Picoscope instrument...")
         ps = ps6000.PS6000(serialNumber=None, connect=True)
         return ps
 
