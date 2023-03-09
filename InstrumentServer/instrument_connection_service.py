@@ -2,8 +2,7 @@ import pyvisa
 import requests
 import logging
 from enum import Enum
-from Instrument.instrument_manager import InstrumentManager
-from Instrument.picoscope_manager import PicoscopeManager
+from Insrument.instrument_manager import InstrumentManager
 
 class INST_INTERFACE(Enum):
     USB = 'USB'
@@ -74,30 +73,6 @@ class InstrumentConnectionService:
         except ValueError as e:
             raise ConnectionError(e)
 
-    def connect_to_none_visa_instrument(self, cute_name: str):
-        """Creates and stores connection to given NONE_VISA instrument"""
-
-        if cute_name in self._connected_instruments.keys():
-            raise ValueError(f'{cute_name} is already connected.')
-
-        # Use cute_name to determine the interface (hit endpoint for that)
-        url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
-        response = requests.get(url, params={'cute_name': cute_name})
-
-        # raise exception for error
-        if 200 < response.status_code >= 300:
-            response.raise_for_status()
-
-        response_dict = dict(response.json())
-        try:
-            pm = PicoscopeManager(cute_name, response_dict)
-            self._connected_instruments[cute_name] = pm
-            self.get_logger().debug(f"Connected to {cute_name}.")
-        # InstrumentManager may throw value error, this service should throw a Connection error
-        except ValueError as e:
-            raise ConnectionError(e)
-
-
     def disconnect_instrument(self, cute_name: str):
         if cute_name not in self._connected_instruments.keys():
             raise KeyError(f"{cute_name} is not currently connected.")
@@ -145,9 +120,8 @@ class InstrumentConnectionService:
             return False, response.json()
         
     def remove_instrument_from_database(self, cute_name: str):
-        # even if instrument is not connected, still remove it
-        if cute_name in self._connected_instruments.keys():
-            self.disconnect_instrument(cute_name)
+        self.disconnect_instrument(cute_name)
+        
         url = r'http://127.0.0.1:5000/instrumentDB/removeInstrument'
         response = requests.get(url, params={'cute_name': cute_name})
         if 300 > response.status_code <= 200:
