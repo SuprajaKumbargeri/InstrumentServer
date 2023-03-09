@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea)
-from Instrument.instrument_manager import InstrumentManager
+from Insrument.instrument_manager import InstrumentManager
 from GUI.quantity_group_boxes import *
 
 class InstrumentManagerGUI(QWidget):
