@@ -15,6 +15,7 @@ add picoscope instrument to the db
 # connect_result, msg = add_instrument_to_database(details)
 # print(connect_result)
 # print(msg)
+
 '''
 simulate connect_to_visa_instrument
 will create connect_to_visa_instrument to handle picoscope
@@ -43,4 +44,3 @@ except Exception as e:
     print(e)
 finally:
     ps6000._close()
-
