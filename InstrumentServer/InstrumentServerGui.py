@@ -24,6 +24,8 @@ class InstrumentServerWindow(QMainWindow):
 
         # Convenience flag preventing VISA/DB aspects from being automatically called at startup
         self.dev_machine = False
+        # key: instrument cute name, value: instrument type - VISA or NONE_VISA
+        self.instrument_type = {}
 
         super(InstrumentServerWindow, self).__init__()
 
@@ -212,7 +214,7 @@ class InstrumentServerWindow(QMainWindow):
         print('Add was clicked')
         dlg = AddInstrumentWindow()
 
-        if dlg.exec():            
+        if dlg.exec():
             if not dlg.name_line.text() or not dlg.path_line.text() or (dlg.interface_choice.currentText() == "TCPIP" and not dlg.address_line.text()):
                 msgBox = QMessageBox(self)
                 msg = "Failed to add instrument. Please provide complete details."
@@ -230,7 +232,7 @@ class InstrumentServerWindow(QMainWindow):
                    "visa": str(dlg.visa_check.isChecked()),
                    "path": dlg.path_line.text()}
                 connect_result, msg = self._ics.add_instrument_to_database(details)
-                
+
                 if not connect_result: msg = "Failed. " + msg
                 msgBox = QMessageBox(self)
                 msgBox.setWindowTitle("Status")
@@ -244,7 +246,7 @@ class InstrumentServerWindow(QMainWindow):
         print('Remove was clicked')
         button = QMessageBox.question(self, "Remove Instrument",
                                       "Are you sure you want to remove the instrument '{}'?".format(self.currently_selected_instrument))
-        
+
         if button == QMessageBox.StandardButton.Yes:
             msg = self._ics.remove_instrument_from_database(self.currently_selected_instrument)
             msgBox = QMessageBox(self)
@@ -263,9 +265,14 @@ class InstrumentServerWindow(QMainWindow):
             return
 
         try:
-            self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
-            current_item = self.instrument_tree.currentItem()
-            current_item.setIcon(0, self.green_icon)
+            if self.instrument_type[self.currently_selected_instrument] == "VISA":
+                self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
+                current_item = self.instrument_tree.currentItem()
+                current_item.setIcon(0, self.green_icon)
+            else:
+                self._ics.connect_to_none_visa_instrument(self.currently_selected_instrument)
+                current_item = self.instrument_tree.currentItem()
+                current_item.setIcon(0, self.green_icon)
 
         except ValueError as e:
             QMessageBox.information(self, 'Instrument is already connected.', 'Instrument is already connected.')
@@ -285,7 +292,10 @@ class InstrumentServerWindow(QMainWindow):
         while qtiter.value():
             try:
                 current_item = qtiter.value()
-                self._ics.connect_to_visa_instrument(current_item.text(1))
+                if self.instrument_type[current_item.text(1)] == "VISA":
+                    self._ics.connect_to_visa_instrument(current_item.text(1))
+                else:
+                    self._ics.connect_to_none_visa_instrument(current_item.text(1))
                 current_item.setIcon(0, self.green_icon)
             except:
                 failed_connections.append(current_item.text(1))
@@ -372,7 +382,14 @@ class InstrumentServerWindow(QMainWindow):
                         interface = instrument[2]
                         ip_address = instrument[3]
                         serial = instrument[4]
-                        via = instrument[5]
+                        visa = instrument[5]
+
+                        print(ip_address)
+
+                        if visa:
+                            self.instrument_type[cute_name] = "VISA"
+                        else:
+                            self.instrument_type[cute_name] = "NONE_VISA"
 
                         # If an IP Address was provided, use it for Address column, otherwise use the Interface
                         self.add_instrument_to_list(manufacturer,
@@ -395,7 +412,7 @@ class InstrumentServerWindow(QMainWindow):
         if not self._ics.is_connected(cute_name):
             self.connect_btn_clicked()
             return
-        
+
         try:
             instrument_manager = self._ics.get_instrument_manager(cute_name)
         except Exception as e:
@@ -419,12 +436,12 @@ class AddInstrumentWindow(QDialog):
         file_input_hbox.addWidget(self.path_line)
         file_input_hbox.addWidget(self.filebutton)
 
-        file_input_vbox = QVBoxLayout()        
+        file_input_vbox = QVBoxLayout()
         file_input_vbox.addWidget(self.file_message)
         file_input_vbox.addLayout(file_input_hbox)
 
         self.file_group_box = QGroupBox("Instrument Driver")
-        self.file_group_box.setLayout(file_input_vbox)              
+        self.file_group_box.setLayout(file_input_vbox)
 
         # Box 2 for communication input
         self.name_line = QLineEdit()
@@ -436,7 +453,7 @@ class AddInstrumentWindow(QDialog):
         comm_form_layout.addRow(QLabel("Name:"), self.name_line)
         comm_form_layout.addRow(QLabel("Interface:"), self.interface_choice)
         comm_form_layout.addRow(QLabel("Address:"), self.address_line)
-                
+
         self.serial_check = QCheckBox("Serial")
         self.visa_check = QCheckBox("VISA instrument")
 
@@ -449,8 +466,8 @@ class AddInstrumentWindow(QDialog):
         comm_input_vbox.addLayout(comm_input_hbox)
 
         self.comm_group_box = QGroupBox("Communication")
-        self.comm_group_box.setLayout(comm_input_vbox)        
-       
+        self.comm_group_box.setLayout(comm_input_vbox)
+
         # Box 3 for Ok and Cancel inputs
         question_buttons = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         self.button_box = QDialogButtonBox(question_buttons)
@@ -465,7 +482,7 @@ class AddInstrumentWindow(QDialog):
         self.setLayout(self.layout)
         self.setFixedWidth(400)
 
-    def getFilePath(self):        
+    def getFilePath(self):
         file_filter = 'Configuration File (*.ini);; Python File (*.py)'
         initial_filter = 'Configuration File (*.ini)'
         fileName = QFileDialog.getOpenFileName(parent = self, caption = "Select File", directory = "C:\\", filter = file_filter, initialFilter = initial_filter )
