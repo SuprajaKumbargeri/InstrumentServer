@@ -1,15 +1,10 @@
-import json
-from psycopg2.extensions import AsIs
-
 import logging
 from flask import request, current_app, g
 from psycopg2 import errors
 import requests
 from flask import Blueprint, jsonify
 from werkzeug.exceptions import (abort, BadRequestKeyError)
-
 import db, instrumentDBService as ids
-import driverParser as dp
 
 
 bp = Blueprint("instrumentDB", __name__,  url_prefix='/instrumentDB')
@@ -39,6 +34,11 @@ def addInstrument():
             for quantity in instrument_details['quantities'].keys():
                 ids.addQuantity(connection, instrument_details['quantities'][quantity], cute_name)
             connection.commit()
+
+            # If the baud rate is provided, we will overwrite the value we got from the ini file
+            if details['baud_rate']:
+                my_logger.debug(f"Baud Rate: {details['baud_rate']} was provided. Replacing value from ini file.")
+                ids.update_visa_baud_rate(connection, details['baud_rate'])
 
             db.close_db(connection)
             return jsonify("Instrument added."), 200

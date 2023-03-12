@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS instruments (
 	cute_name TEXT PRIMARY KEY NOT NULL,
 	manufacturer TEXT NOT NULL,
 	interface TEXT NOT NULL, 
-	ip_address TEXT,
+	address TEXT,
 	serial BOOLEAN,
 	visa BOOLEAN
 );

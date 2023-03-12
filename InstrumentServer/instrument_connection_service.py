@@ -2,6 +2,7 @@ import pyvisa
 import requests
 import logging
 from enum import Enum
+from http import HTTPStatus
 from Insrument.instrument_manager import InstrumentManager
 
 class INST_INTERFACE(Enum):
@@ -35,15 +36,14 @@ class InstrumentConnectionService:
         response = requests.get(url, params={'cute_name': cute_name})
 
         # raise exception for error
-        if 200 < response.status_code >= 300:
+        if HTTPStatus.OK < response.status_code >= HTTPStatus.MULTIPLE_CHOICES:
             response.raise_for_status()
 
         response_dict = dict(response.json())
         interface = response_dict['instrument_interface']['interface']
+        address = response_dict['instrument_interface']['address']
 
-        # Might be None
-        ip_address = response_dict['instrument_interface']['ip_address']
-        self.get_logger().debug(f'Cute_name {cute_name} uses interface: {interface}')
+        self.get_logger().debug(f'Cute_name: {cute_name} uses interface: {interface} and address: {address}')
 
         # Get list of resources to compare to
         rm = pyvisa.ResourceManager()
@@ -51,24 +51,23 @@ class InstrumentConnectionService:
         connection_str = None
 
         if interface == INST_INTERFACE.TCPIP.name:
-            self.get_logger().debug(f'TCPIP instrument IP address is {ip_address}')
-            connection_str = self.make_conn_str_tcip_instrument(ip_address)
+            connection_str = self.make_conn_str_tcip_instrument(address)
         else:
             # Get the connection string (used to get PyVISA resource)
             for resource in resources:
-                if interface in resource:
+                if interface in resource and address in resource:
                     connection_str = resource
                     break
 
         if connection_str is None:
-            raise ConnectionError(f"Could not connect to {cute_name}. Unable to find valid connection string.")
+            raise ConnectionError(f"Could not connect to {cute_name}. Available resources are: {resources}")
 
         # Connect to instrument
         self.get_logger().debug('Using connection string: {connection_str} to connect to {cute_name}')
         try:
             im = InstrumentManager(cute_name, connection_str)
             self._connected_instruments[cute_name] = im
-            self.get_logger().debug(f"Connected to {cute_name}.")
+            self.get_logger().debug(f"VISA connection established to: {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
         except ValueError as e:
             raise ConnectionError(e)
@@ -100,7 +99,7 @@ class InstrumentConnectionService:
         return self._connected_instruments[cute_name]
 
 
-    def make_conn_str_tcip_instrument(self, ip_address: str) -> str:
+    def make_conn_str_tcip_instrument(self, address: str) -> str:
         """
         Construct a connection string for TCPIP instruments
         Example: TCPIP0::192.168.0.7::INSTR
@@ -109,12 +108,12 @@ class InstrumentConnectionService:
         TCPIP_INTERFACE = 'TCPIP0'
         END = 'INSTR'
 
-        return f'{TCPIP_INTERFACE}::{ip_address}::{END}'
+        return f'{TCPIP_INTERFACE}::{address}::{END}'
     
     def add_instrument_to_database(self, details: dict):
         url = r'http://127.0.0.1:5000/instrumentDB/addInstrument'
         response = requests.post(url, json=details)
-        if 300 > response.status_code <= 200:
+        if HTTPStatus.MULTIPLE_CHOICES > response.status_code <= HTTPStatus.OK:
             return True, response.json()
         else:
             return False, response.json()
@@ -124,7 +123,7 @@ class InstrumentConnectionService:
         
         url = r'http://127.0.0.1:5000/instrumentDB/removeInstrument'
         response = requests.get(url, params={'cute_name': cute_name})
-        if 300 > response.status_code <= 200:
+        if HTTPStatus.MULTIPLE_CHOICES > response.status_code <= HTTPStatus.OK:
             return "Instrument removed."
         else:
             print(response.raise_for_status())
