@@ -38,7 +38,7 @@ def addInstrument():
             # If the baud rate is provided, we will overwrite the value we got from the ini file
             if details['baud_rate']:
                 my_logger.debug(f"Baud Rate: {details['baud_rate']} was provided. Replacing value from ini file.")
-                ids.update_visa_baud_rate(connection, details['baud_rate'])
+                ids.update_visa_baud_rate(connection, cute_name, details['baud_rate'])
 
             db.close_db(connection)
             return jsonify("Instrument added."), 200
@@ -68,12 +68,12 @@ def allInstruments():
         all_instruments = {}
 
         with connection.cursor() as cursor:
-            all_instruments_query = "SELECT cute_name, manufacturer, interface, ip_address FROM {table_name};".format(table_name="instruments")           
+            all_instruments_query = "SELECT cute_name, manufacturer, interface, address FROM {table_name};".format(table_name="instruments")
             cursor.execute(all_instruments_query)
             result = cursor.fetchall()
 
             for instrument in result:
-                all_instruments[instrument[0]] = {'manufacturer': instrument[1], 'interface': instrument[2], 'ip_address': instrument[3]}
+                all_instruments[instrument[0]] = {'manufacturer': instrument[1], 'interface': instrument[2], 'address': instrument[3]}
 
         db.close_db(connection)
         if len(all_instruments) == 0:

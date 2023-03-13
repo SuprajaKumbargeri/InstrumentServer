@@ -52,6 +52,12 @@ class InstrumentConnectionService:
 
         if interface == INST_INTERFACE.TCPIP.name:
             connection_str = self.make_conn_str_tcip_instrument(address)
+        elif interface == INST_INTERFACE.USB.name and INST_INTERFACE.ASRL.name in address:
+            # Serial instruments do not have "USB" in the connection string
+            for resource in resources:
+                if address in resource:
+                    connection_str = resource
+                    break
         else:
             # Get the connection string (used to get PyVISA resource)
             for resource in resources:
@@ -67,7 +73,7 @@ class InstrumentConnectionService:
         try:
             im = InstrumentManager(cute_name, connection_str)
             self._connected_instruments[cute_name] = im
-            self.get_logger().debug(f"VISA connection established to: {cute_name}.")
+            self.get_logger().info(f"VISA connection established to: {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
         except ValueError as e:
             raise ConnectionError(e)
@@ -119,12 +125,19 @@ class InstrumentConnectionService:
             return False, response.json()
         
     def remove_instrument_from_database(self, cute_name: str):
-        self.disconnect_instrument(cute_name)
-        
+
+        try:
+            self.disconnect_instrument(cute_name)
+
+        except KeyError:
+            self.get_logger().info(f'Instrument {cute_name} is not currently connected.')
+        except Exception as e:
+            self.get_logger().info(f'Instrument {cute_name} is not currently connected.')
+
         url = r'http://127.0.0.1:5000/instrumentDB/removeInstrument'
         response = requests.get(url, params={'cute_name': cute_name})
         if HTTPStatus.MULTIPLE_CHOICES > response.status_code <= HTTPStatus.OK:
             return "Instrument removed."
         else:
-            print(response.raise_for_status())
+            self.get_logger().fatal(response.raise_for_status())
         return "Failed to remove the instrument."

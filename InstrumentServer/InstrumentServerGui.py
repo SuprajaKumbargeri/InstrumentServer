@@ -8,7 +8,15 @@ import db
 import instrument_connection_service
 from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
+from enum import Enum
 
+class INST_INTERFACE(Enum):
+    USB = 'USB'
+    GPIB = 'GPIB'
+    TCPIP = 'TCPIP'
+    SERIAL = 'SERIAL'
+    ASRL = 'ASRL'
+    COM = 'COM'
 
 ###################################################################################
 # InstrumentServerWindow
@@ -234,7 +242,7 @@ class InstrumentServerWindow(QMainWindow):
             self.get_logger().debug('User hit cancel')
 
     def remove_btn_clicked(self):
-        print('Remove was clicked')
+        self.get_logger().debug('Remove was clicked')
         button = QMessageBox.question(self, "Remove Instrument",
                                       "Are you sure you want to remove the instrument '{}'?".format(
                                           self.currently_selected_instrument))
@@ -369,10 +377,16 @@ class InstrumentServerWindow(QMainWindow):
                         serial = instrument[4]
                         visa = instrument[5]
 
+                        # The actual address to be displayed
+                        display_address = address
+
+                        if interface == INST_INTERFACE.GPIB.name:
+                            display_address = f'{interface}::{address}'
+
                         # If an IP Address was provided, use it for Address column, otherwise use the Interface
                         self.add_instrument_to_list(manufacturer,
                                                     cute_name,
-                                                    (address if address != None else interface))
+                                                    display_address)
 
             except Exception as ex:
                 self.get_logger().fatal(f'There was a problem getting all known instruments: {ex}')
