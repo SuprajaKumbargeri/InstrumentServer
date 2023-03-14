@@ -272,6 +272,15 @@ class InstrumentManager:
         value = self.ask(self._driver['quantities'][quantity]['get_cmd'])
         return self._convert_return_value(quantity, value)
 
+    def get_last_known_value(self, quantity):
+        url = r'http://127.0.0.1:5000/instrumentDB/getLatestValue'
+        response = requests.get(url, params={'cute_name': self._name})
+
+        if 300 > response.status_code >= 200:
+            self._driver = dict(response.json())
+        else:
+            response.raise_for_status()
+
     def set_default_value(self, quantity):
         """Sets default value for given quantity
         Parameters:

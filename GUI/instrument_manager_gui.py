@@ -1,41 +1,93 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea)
 from Insrument.instrument_manager import InstrumentManager
-from GUI.quantity_group_boxes import *
+from GUI.quantity_frames import *
 
 class InstrumentManagerGUI(QWidget):
     def __init__(self, instrument_manager: InstrumentManager):
         super(InstrumentManagerGUI, self).__init__()
-        self.quantity_groups = list()
 
-        scroll_layout = QVBoxLayout()
+        self._im = instrument_manager
+        self.quantity_frames = list()
+        self.section_frames = dict()
+
+        self.scroll_layout = QVBoxLayout()
+
+        # add all quantities to layouts dependent on section and group name
+        self._build_quanitity_sections()
+        # add sections to layout
+        for section_name, section in self.section_frames.items():
+            section.setHidden(True)
+            self.scroll_layout.addWidget(section)
+        self.scroll_layout.addStretch(1)
+
+        self.section_frames['Modulation'].setHidden(False)
+
+        # this widget is needed for the QScrollArea
         widget = QWidget()
-        widget.setLayout(scroll_layout)
-
-        # add all quantities
-        for quantity in instrument_manager.quantity_names:
-            quantity_info = instrument_manager.get_quantity_info(quantity)
-            group = quantity_group_box_factory(quantity_info, instrument_manager.set_value,
-                                               instrument_manager.get_value, self.handle_combo_change)
-            group.setFixedHeight(100)
-            scroll_layout.addWidget(group)
-            self.quantity_groups.append(group)
-
-        scroll_layout.addStretch(1)
+        widget.setLayout(self.scroll_layout)
         
-        scroll_area = QScrollArea()
-        scroll_area.setWidget(widget)
-        scroll_area.setWidgetResizable(True)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidget(widget)
+        self.scroll_area.setWidgetResizable(True)
 
         main_layout = QVBoxLayout()
-        main_layout.addWidget(scroll_area)
+        main_layout.addWidget(self.scroll_area)
         self.setLayout(main_layout)
 
-        self.setWindowTitle(f"{instrument_manager.name} Manager")
+        self.setWindowTitle(f"{self._im.name} Manager")
         self.show()
         self.resize(800, 600)
 
+    def _build_quanitity_sections(self):
+        """Loops through all quantities and adds them to the correct groups.
+        Groups are then assigned to sections. Groups/sections can be found in instrument driver"""
+        sections = dict()
+
+        for quantity in self._im.quantity_names:
+            quantity_info = self._im.get_quantity_info(quantity)
+
+            frame = quantity_frame_factory(quantity_info, self._im.set_value,
+                                           self._im.get_value, self.handle_combo_change)
+            frame.setFixedHeight(100)
+            self.quantity_frames.append(frame)
+
+            # get section name, default to Uncategorized
+            section_name = quantity_info['section']
+            if not section_name:
+                section_name = 'Uncategorized'
+            # get group name, default to Uncategorized
+            group_name = quantity_info['groupname']
+            if not group_name:
+                group_name = 'Uncategorized'
+
+            # create new section
+            if section_name not in sections:
+                sections[section_name] = dict()
+
+            # add new frame to existing group
+            if group_name in sections[section_name]:
+                sections[section_name][group_name].append(frame)
+            # create new group
+            else:
+                sections[section_name][group_name] = list()
+                sections[section_name][group_name].append(frame)
+
+        # construct frames for each section
+        for section_name, section in sections.items():
+            section_frame = QtW.QFrame()
+            section_layout = QtW.QVBoxLayout()
+
+            # construct groupboxes for each group
+            for group_name in sections[section_name]:
+                quantities = section[group_name]
+                section_layout.addWidget(QuantityGroupBox(group_name, quantities))
+
+            section_frame.setLayout(section_layout)
+            self.section_frames[section_name] = section_frame
+
+
     def handle_combo_change(self, quantity_name, state_value):
-        for quantity_group in self.quantity_groups:
+        for quantity_group in self.quantity_frames:
             if quantity_group.state_quant != quantity_name:
                 continue
 
