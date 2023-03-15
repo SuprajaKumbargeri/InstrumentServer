@@ -1,4 +1,4 @@
-from PyQt6 import QtWidgets as QtW
+from PyQt6 import QtCore, QtWidgets as QtW
 from PyQt6.QtGui import QFont
 from typing import Callable
 
@@ -6,11 +6,14 @@ from typing import Callable
 class QuantityFrame(QtW.QFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__()
+
         self.quantity_info = quantity_info
         self.set_value_method = set_value_method
         self.get_value_method = get_value_method
+        self.label_weight = 1
+        self.value_weight = 2
 
-        self.v_layout = QtW.QVBoxLayout()
+        self.layout = QtW.QHBoxLayout()
 
         self.label = QtW.QLabel()
         self.label.setText(quantity_info['label'])
@@ -18,28 +21,16 @@ class QuantityFrame(QtW.QFrame):
         font.setBold(True)
         self.label.setFont(font)
         self.label.setMaximumHeight(25)
-        self.v_layout.addWidget(self.label)
+        self.layout.addWidget(self.label, self.label_weight)
 
-        self.h_layout = QtW.QHBoxLayout()
-        self.h_frame = QtW.QFrame()
-
-        # all quantity boxes will have set/get buttons
-        self.set_value_btn = QtW.QPushButton("Set value")
-        self.set_value_btn.clicked.connect(self.set_value)
-        self.set_value_btn.setMaximumHeight(25)
-        self.get_value_btn = QtW.QPushButton("Get value")
-        self.get_value_btn.clicked.connect(self.get_value)
-        self.get_value_btn.setMaximumHeight(25)
-
-        # Disable buttons based on permission
+        # TODO: Permission
         match self.quantity_info['permission'].upper():
             case 'NONE':
-                self.set_value_btn.setDisabled(True)
-                self.get_value_btn.setDisabled(True)
+                pass
             case 'READ':
-                self.set_value_btn.setDisabled(True)
+                pass
             case 'WRITE':
-                self.get_value_btn.setDisabled(True)
+                pass
             # Both
             case _:
                 pass
@@ -68,7 +59,7 @@ class QuantityFrame(QtW.QFrame):
             self.handle_incoming_value(value)
         except Exception as e:
             print(e)
-            QtW.QMessageBox.critical(self, 'Error', e)
+            QtW.QMessageBox.critical(self, 'Error', str(e))
 
     def handle_incoming_value(self, value):
         """Handles any value returned by instrument to be properly displayed. Should be implemented by child class"""
@@ -80,37 +71,37 @@ class BooleanFrame(QuantityFrame):
         super().__init__(quantity_info, set_value_method, get_value_method)
 
         # Create butto group and connect to method
-        self.group = QtW.QButtonGroup()
-        self.group.setExclusive(False)
-        self.group.buttonClicked.connect(self.radio_button_clicked)
+        self.button_group = QtW.QButtonGroup()
+        self.button_group.setExclusive(True)
+        self.button_group.buttonClicked.connect(self.set_value)
 
         # add radio buttons to group
         self.true_radio_button = QtW.QRadioButton("True")
-        self.group.addButton(self.true_radio_button)
+        self.button_group.addButton(self.true_radio_button)
         self.true_radio_button.setToolTip(self.quantity_info['tool_tip'])
         self.false_radio_button = QtW.QRadioButton("False")
-        self.group.addButton(self.false_radio_button)
+        self.button_group.addButton(self.false_radio_button)
         self.false_radio_button.setToolTip(self.quantity_info['tool_tip'])
 
-        self.h_layout.addWidget(self.true_radio_button)
-        self.h_layout.addWidget(self.false_radio_button)
-        self.h_layout.addWidget(self.set_value_btn)
-        self.h_layout.addWidget(self.get_value_btn)
+        # create local layout and widget to
+        h_layout = QtW.QHBoxLayout()
+        h_layout.addWidget(self.true_radio_button)
+        h_layout.addWidget(self.false_radio_button)
 
-        self.h_frame.setLayout(self.h_layout)
-        self.v_layout.addWidget(self.h_frame)
-        self.setLayout(self.v_layout)
+        widget = QtW.QWidget()
+        widget.setLayout(h_layout)
+        widget.setFixedHeight(40)
+
+        widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+
+        self.layout.addWidget(widget, self.value_weight)
+        self.setLayout(self.layout)
 
         # set quantity value to last known value in DB or default value
         if self.quantity_info['latest_value']:
             self.handle_incoming_value(bool(self.quantity_info['latest_value']))
         else:
             self.handle_incoming_value(bool(self.quantity_info['def_value']))
-
-    def radio_button_clicked(self, radio_button):
-        for button in self.group.buttons():
-            if button is not radio_button:
-                button.setChecked(False)
 
     @QuantityFrame.value.getter
     def value(self):
@@ -136,14 +127,9 @@ class ComboFrame(QuantityFrame):
         self.combo_box.addItems(self.quantity_info['combos'])
         self.combo_box.setToolTip(self.quantity_info['tool_tip'])
 
-        self.h_layout.addWidget(self.combo_box)
-        self.h_layout.addWidget(self.set_value_btn)
-        self.h_layout.addWidget(self.get_value_btn)
+        self.layout.addWidget(self.combo_box, self.value_weight)
 
-        self.h_frame.setLayout(self.h_layout)
-        self.v_layout.addWidget(self.h_frame)
-
-        self.setLayout(self.v_layout)
+        self.setLayout(self.layout)
 
     @QuantityFrame.value.getter
     def value(self):
@@ -171,21 +157,16 @@ class DoubleFrame(QuantityFrame):
         self.spin_box = QtW.QDoubleSpinBox()
 
         # Set min/max. Floats can handle '+-INF'
-        min = float(quantity_info["low_lim"])
-        max = float(quantity_info["high_lim"])
-        self.spin_box.setMinimum(min)
-        self.spin_box.setMaximum(max)
+        low = float(quantity_info["low_lim"])
+        high = float(quantity_info["high_lim"])
+        self.spin_box.setMinimum(low)
+        self.spin_box.setMaximum(high)
         self.spin_box.setSuffix(f" {self.quantity_info['unit']}")
         self.spin_box.setToolTip(self.quantity_info['tool_tip'])
 
-        self.h_layout.addWidget(self.spin_box)
-        self.h_layout.addWidget(self.set_value_btn)
-        self.h_layout.addWidget(self.get_value_btn)
+        self.layout.addWidget(self.spin_box, self.value_weight)
 
-        self.h_frame.setLayout(self.h_layout)
-        self.v_layout.addWidget(self.h_frame)
-
-        self.setLayout(self.v_layout)
+        self.setLayout(self.layout)
 
         # set quantity value to default value
         self.handle_incoming_value(float(self.quantity_info['def_value']))
@@ -211,7 +192,7 @@ class StringFrame(QuantityFrame):
 class VectorFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
         super().__init__(quantity_info, set_value_method, get_value_method)
-        self.setLayout(self.v_layout)
+        self.setLayout(self.layout)
 
 
 class VectorComplexFrame(QuantityFrame):
@@ -243,11 +224,17 @@ def quantity_frame_factory(quantity_info: dict, set_value_method: Callable, get_
 
 
 class QuantityGroupBox(QtW.QGroupBox):
-    def __init__(self, group: str, frames: list[QuantityFrame]):
+    def __init__(self, group_name: str, frames: list[QuantityFrame]):
         super().__init__()
 
         self.layout = QtW.QVBoxLayout()
-        self.label = self.label = QtW.QLabel(group)
+
+        self.label = QtW.QLabel()
+        self.label.setText(group_name)
+        font = QFont()
+        font.setBold(True)
+        self.label.setFont(font)
+        self.label.setMaximumHeight(25)
         self.layout.addWidget(self.label)
 
         for frame in frames:

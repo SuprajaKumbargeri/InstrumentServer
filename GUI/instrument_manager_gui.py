@@ -39,7 +39,7 @@ class InstrumentManagerGUI(QWidget):
         self.resize(800, 600)
 
     def _build_quanitity_sections(self):
-        """Loops through all quantities and adds them to the correct groups.
+        """Loops through all quantities and adds them to the correct groups and lookup list.
         Groups are then assigned to sections. Groups/sections can be found in instrument driver"""
         sections = dict()
 
@@ -48,7 +48,10 @@ class InstrumentManagerGUI(QWidget):
 
             frame = quantity_frame_factory(quantity_info, self._im.set_value,
                                            self._im.get_value, self.handle_combo_change)
-            frame.setFixedHeight(100)
+            frame.setFixedHeight(40)
+
+            # store all frames in a lookup list
+            # This is used to hide quantities if their visibility is tied to another quantity value
             self.quantity_frames.append(frame)
 
             # get section name, default to Uncategorized
@@ -82,17 +85,20 @@ class InstrumentManagerGUI(QWidget):
                 quantities = section[group_name]
                 section_layout.addWidget(QuantityGroupBox(group_name, quantities))
 
+            # set section layout and add to lookup dictionary
             section_frame.setLayout(section_layout)
             self.section_frames[section_name] = section_frame
 
 
     def handle_combo_change(self, quantity_name, state_value):
-        for quantity_group in self.quantity_frames:
-            if quantity_group.state_quant != quantity_name:
+        """Called by ComboFrame when the combo's value is changed.
+        Sets visibility of other quantities depending on new value"""
+        for quantity_frame in self.quantity_frames:
+            if quantity_frame.state_quant != quantity_name:
                 continue
 
-            if state_value in quantity_group.state_values:
-                quantity_group.setHidden(False)
+            if state_value in quantity_frame.state_values:
+                quantity_frame.setHidden(False)
             else:
-                quantity_group.setHidden(True)
+                quantity_frame.setHidden(True)
 
