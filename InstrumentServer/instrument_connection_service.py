@@ -71,7 +71,7 @@ class InstrumentConnectionService:
         # Connect to instrument
         self.get_logger().debug('Using connection string: {connection_str} to connect to {cute_name}')
         try:
-            im = InstrumentManager(cute_name, connection_str)
+            im = InstrumentManager(cute_name, connection_str, self._my_logger)
             self._connected_instruments[cute_name] = im
             self.get_logger().info(f"VISA connection established to: {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
@@ -80,7 +80,7 @@ class InstrumentConnectionService:
 
     def disconnect_instrument(self, cute_name: str):
         if cute_name not in self._connected_instruments.keys():
-            raise KeyError(f"{cute_name} is not currently connected.")
+            return
 
         del self._connected_instruments[cute_name]
         self.get_logger().debug(f"Disconnected {cute_name}.")

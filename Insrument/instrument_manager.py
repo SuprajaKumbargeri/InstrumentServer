@@ -15,8 +15,9 @@ TERM_CHAR = Enum('TERM_CHAR',
 # InstrumentManager
 ###################################################################################
 class InstrumentManager:
-    def __init__(self, name, connection):
+    def __init__(self, name, connection, logger):
         self._name = name
+        self._logger = logger
         self._instrument = None
         self._driver = None
         self._timeout = 1000.0
@@ -68,7 +69,7 @@ class InstrumentManager:
                 # The actual terminating chars as str
                 read_term = str(TERM_CHAR[self._term_chars].value)
 
-                print('Using the following parameters to connect to serial VISA instrument: resource_name={}, '
+                self._logger.debug('Using the following parameters to connect to serial VISA instrument: resource_name={}, '
                       'read_termination={}, baud_rate={}'.format(connection,
                                                                  TERM_CHAR[self._term_chars],
                                                                  self._baud_rate))
@@ -79,7 +80,7 @@ class InstrumentManager:
                                                           baud_rate=self._baud_rate,
                                                           open_timeout=10000)
             else:
-                print('Connecting to VISA instrument: {} using: {}'.format(self.name, connection))
+                self._logger.debug('Connecting to VISA instrument: {} using: {}'.format(self.name, connection))
                 self._instrument = self._rm.open_resource(connection)
 
         # TODO: allow for user defined instrument class
@@ -100,7 +101,7 @@ class InstrumentManager:
         raise ValueError(f"No model listed in ['Models and options'] match the instruments model: '{instrID}'")
 
     def _get_visa_settings(self):
-        print('Getting visa settings...')
+        self._logger.debug('Getting visa settings...')
         """Gets instrument settings using data in driver['VISA settings']"""
         if self._driver is not None:
             # timeout in ms
@@ -111,7 +112,7 @@ class InstrumentManager:
             # used to determine if errors should be read after every read
             self._query_errors = self._driver['visa']['query_instr_errors']
         else:
-            print('Driver dictionary is not defined!')
+            self._logger.warning('Driver dictionary is not defined!')
 
     def _get_serial_values(self):
         """Gets Instrument values for serial instruments"""
@@ -134,12 +135,6 @@ class InstrumentManager:
         self._instrument.stop_bits = self._driver['visa']['stop_bits']
         self._instrument.parity = self._driver['visa']['parity'].replace(' ', '_').lower()
 
-    
-    def _set_default_value(self, quantity):
-        """Set's default value for given quantity"""
-        if self._driver['quantities'][quantity]['def_value']:
-            self[quantity] = self._driver['quantities'][quantity]['def_value']
-
     def _startup(self):
         """Sends relevant start up commands to instrument"""
         if self._driver['visa']['init']:
@@ -147,10 +142,11 @@ class InstrumentManager:
 
         if self._driver['quantities']:
             _quantities = list(self._driver['quantities'].keys())
+        else:
+            return
 
-        # for quantity in _quantities:
-        #     print(quantity)
-        #     self.set_default_value(quantity)
+        for quantity in _quantities:
+            self.set_default_value(quantity)
 
     def close(self):
         """Sends final command to instrument if defined in driver and closes instrument and related resources"""
@@ -257,7 +253,12 @@ class InstrumentManager:
         del quantity_info['set_cmd']
         del quantity_info['get_cmd']
         del quantity_info['combo_cmd']
-        quantity_info['combos'] = self._driver['quantities'][quantity].keys()
+
+        if self._driver['quantities'][quantity]['data_type'].upper() == "COMBO":
+            quantity_info['combos'] = self._driver['quantities'][quantity]['combo_cmd'].keys()
+        else:
+            quantity_info['combos'] = list()
+
         quantity_info['name'] = quantity
         return quantity_info
 
@@ -274,7 +275,6 @@ class InstrumentManager:
         Parameters:
             quantity -- Quantity name as provided in instrument driver
         """
-        print("Trying to set value")
         if self._driver['quantities'][quantity]['def_value']:
             self.set_value(quantity, self._driver['quantities'][quantity]['def_value'])
 
@@ -343,22 +343,31 @@ class InstrumentManager:
         # Checks allow for user to pass in TRUE, FALSE, or driver-defined values
         if quantity_dict['data_type'].upper() == 'BOOLEAN':
             value = str(value).strip()
-            if value.upper() == ("TRUE" or self._driver['visa']['str_true'].upper().strip()):
+            
+            if value.upper() in ("TRUE", self._driver['visa']['str_true'].upper().strip()):
                 return self._driver['visa']['str_true']
-            elif value.upper() == ("FALSE" or self._driver['visa']['str_false'].upper().strip()):
+            elif value.upper() in ("FALSE", self._driver['visa']['str_false'].upper().strip()):
                 return self._driver['visa']['str_false']
             else:
                 raise ValueError(f"{value} is not a valid boolean value.")
 
+        # Check Combo values
         elif quantity_dict['data_type'].upper() == 'COMBO':
             value = value.strip()
+
             # combo quantity contains no states or commands
             if not quantity_dict['combo_cmd']:
-                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.") \
- \
-            # if user provided name of the state, convert, else return given value as it is already a valid value for the commandcommand
+                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.") 
+ 
+            # if user provided name of the state, convert it to command value 
             if value in (combo.strip() for combo in quantity_dict['combo_cmd'].keys()):
                 return quantity_dict['combo_cmd'][value]
+            # return given value as it is already a valid value for the command
+            elif value in (combo.strip() for combo in quantity_dict['combo_cmd'].values()):
+                return value
+            # incorrect value given, raise error
+            else:
+                raise ValueError(f"Quantity '{quantity}' of type 'COMBO' has no ") 
 
         else:
             return value
