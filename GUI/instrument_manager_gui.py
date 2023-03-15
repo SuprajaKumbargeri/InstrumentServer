@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QTreeWidget, QTreeWidgetItem)
 from Insrument.instrument_manager import InstrumentManager
 from GUI.quantity_frames import *
 import logging
@@ -12,6 +12,8 @@ class InstrumentManagerGUI(QWidget):
         self.logger = logger
         self.quantity_frames = list()
         self.section_frames = dict()
+        self.section_tree_weight = 1
+        self.section_data_weight = 3
 
         self.scroll_layout = QVBoxLayout()
 
@@ -25,8 +27,6 @@ class InstrumentManagerGUI(QWidget):
         self.scroll_layout.addStretch(1)
         self.scroll_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
-        self.section_frames['Modulation'].setHidden(False)
-
         # this widget is needed for the QScrollArea
         widget = QWidget()
         widget.setLayout(self.scroll_layout)
@@ -35,8 +35,11 @@ class InstrumentManagerGUI(QWidget):
         self.scroll_area.setWidget(widget)
         self.scroll_area.setWidgetResizable(True)
 
-        main_layout = QVBoxLayout()
-        main_layout.addWidget(self.scroll_area)
+        self._build_section_tree()
+
+        main_layout = QHBoxLayout()
+        main_layout.addWidget(self.section_tree, self.section_tree_weight)
+        main_layout.addWidget(self.scroll_area, self.section_data_weight)
         self.setLayout(main_layout)
 
         self.setWindowTitle(f"{self._im.name} Manager")
@@ -94,6 +97,28 @@ class InstrumentManagerGUI(QWidget):
             section_frame.setLayout(section_layout)
             self.section_frames[section_name] = section_frame
 
+    def _build_section_tree(self):
+        self.section_tree = QTreeWidget()
+        self.section_tree.setHeaderLabels(["Sections"])
+
+        for section_name in self.section_frames:
+            item = QTreeWidgetItem()
+            item.setText(0, section_name)
+            self.section_tree.addTopLevelItem(item)
+
+        self.section_tree.itemSelectionChanged.connect(self._handle_section_change)
+        self.section_tree.setCurrentItem(self.section_tree.topLevelItem(0))
+
+        return self.section_tree
+
+    def _handle_section_change(self):
+        selected_section_name = self.section_tree.currentItem().text(0)
+
+        for section_name, section in self.section_frames.items():
+            if section_name == selected_section_name:
+                section.setHidden(False)
+            else:
+                section.setHidden(True)
 
     def handle_combo_change(self, quantity_name, state_value):
         """Called by ComboFrame when the combo's value is changed.
