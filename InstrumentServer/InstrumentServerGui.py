@@ -411,7 +411,7 @@ class InstrumentServerWindow(QMainWindow):
             QMessageBox.critical(self, 'Unknown Error', e)
             return
 
-        self.quantity_manager_gui = InstrumentManagerGUI(instrument_manager)
+        self.quantity_manager_gui = InstrumentManagerGUI(instrument_manager, self.my_logger)
 
 
 class AddInstrumentWindow(QDialog):

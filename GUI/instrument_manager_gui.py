@@ -1,12 +1,15 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea)
 from Insrument.instrument_manager import InstrumentManager
 from GUI.quantity_frames import *
+import logging
+
 
 class InstrumentManagerGUI(QWidget):
-    def __init__(self, instrument_manager: InstrumentManager):
+    def __init__(self, instrument_manager: InstrumentManager, logger: logging.Logger):
         super(InstrumentManagerGUI, self).__init__()
 
         self._im = instrument_manager
+        self.logger = logger
         self.quantity_frames = list()
         self.section_frames = dict()
 
@@ -18,7 +21,9 @@ class InstrumentManagerGUI(QWidget):
         for section_name, section in self.section_frames.items():
             section.setHidden(True)
             self.scroll_layout.addWidget(section)
+
         self.scroll_layout.addStretch(1)
+        self.scroll_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
         self.section_frames['Modulation'].setHidden(False)
 
@@ -47,7 +52,7 @@ class InstrumentManagerGUI(QWidget):
             quantity_info = self._im.get_quantity_info(quantity)
 
             frame = quantity_frame_factory(quantity_info, self._im.set_value,
-                                           self._im.get_value, self.handle_combo_change)
+                                           self._im.get_value, self.logger, self.handle_combo_change)
             frame.setFixedHeight(40)
 
             # store all frames in a lookup list
@@ -99,6 +104,7 @@ class InstrumentManagerGUI(QWidget):
 
             if state_value in quantity_frame.state_values:
                 quantity_frame.setHidden(False)
+                self.logger.debug(f"{quantity_frame.name} is now visible.")
             else:
                 quantity_frame.setHidden(True)
-
+                self.logger.debug(f"{quantity_frame.name} is now hidden.")

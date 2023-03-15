@@ -1,20 +1,22 @@
 from PyQt6 import QtCore, QtWidgets as QtW
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QAction, QCursor
 from typing import Callable
-
+import logging
 
 class QuantityFrame(QtW.QFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
         super().__init__()
 
         self.quantity_info = quantity_info
         self.set_value_method = set_value_method
         self.get_value_method = get_value_method
+        self.logger = logger
         self.label_weight = 1
         self.value_weight = 2
 
+        # Set basic layout
         self.layout = QtW.QHBoxLayout()
-
         self.label = QtW.QLabel()
         self.label.setText(quantity_info['label'])
         font = QFont()
@@ -22,6 +24,14 @@ class QuantityFrame(QtW.QFrame):
         self.label.setFont(font)
         self.label.setMaximumHeight(25)
         self.layout.addWidget(self.label, self.label_weight)
+
+        # Create menu for right click events
+        # Implemented into widget by subclasses
+        self.get_action = QAction('Query quantity value')
+        self.set_action = QAction('Set quantity value')
+        self.menu = QtW.QMenu()
+        self.menu.addAction(self.get_action)
+        self.menu.addAction(self.set_action)
 
         # TODO: Permission
         match self.quantity_info['permission'].upper():
@@ -34,6 +44,10 @@ class QuantityFrame(QtW.QFrame):
             # Both
             case _:
                 pass
+
+    @property
+    def name(self):
+        return self.quantity_info['name']
 
     @property
     def value(self):
@@ -50,12 +64,21 @@ class QuantityFrame(QtW.QFrame):
         """Returns state values associated with state_quant for when self is visible"""
         return self.quantity_info['state_values']
 
+    def custom_context_menu_event(self):
+        action = self.menu.exec(QCursor.pos())
+        if action == self.get_action:
+            self.get_value()
+        elif action == self.set_action:
+            self.set_value()
+
     def set_value(self):
         self.set_value_method(self.quantity_info['name'], self.value)
+        self.logger.info(f"{self.name} is being set to '{self.value}'.")
 
     def get_value(self):
         try:
             value = self.get_value_method(self.quantity_info['name'])
+            self.logger.info(f"{self.name} is currently set to '{value}'.")
             self.handle_incoming_value(value)
         except Exception as e:
             print(e)
@@ -67,10 +90,11 @@ class QuantityFrame(QtW.QFrame):
 
 
 class BooleanFrame(QuantityFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
 
-        # Create butto group and connect to method
+        # Create button group and connect to method
         self.button_group = QtW.QButtonGroup()
         self.button_group.setExclusive(True)
         self.button_group.buttonClicked.connect(self.set_value)
@@ -83,18 +107,20 @@ class BooleanFrame(QuantityFrame):
         self.button_group.addButton(self.false_radio_button)
         self.false_radio_button.setToolTip(self.quantity_info['tool_tip'])
 
-        # create local layout and widget to
+        # create local layout and button group widget so that the spacing is correct
         h_layout = QtW.QHBoxLayout()
         h_layout.addWidget(self.true_radio_button)
         h_layout.addWidget(self.false_radio_button)
 
-        widget = QtW.QWidget()
-        widget.setLayout(h_layout)
-        widget.setFixedHeight(40)
+        self.button_group_widget = QtW.QWidget()
+        self.button_group_widget.setLayout(h_layout)
+        self.button_group_widget.setFixedHeight(40)
 
-        widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        # Implement context menu created in parent class
+        self.button_group_widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.button_group_widget.customContextMenuRequested.connect(self.custom_context_menu_event)
 
-        self.layout.addWidget(widget, self.value_weight)
+        self.layout.addWidget(self.button_group_widget, self.value_weight)
         self.setLayout(self.layout)
 
         # set quantity value to last known value in DB or default value
@@ -106,29 +132,34 @@ class BooleanFrame(QuantityFrame):
     @QuantityFrame.value.getter
     def value(self):
         return self.true_radio_button.isChecked()
-    
+
     def handle_incoming_value(self, value):
         self.true_radio_button.setChecked(value)
         self.false_radio_button.setChecked(not value)
 
 
 class ButtonFrame(QuantityFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
 
 
 class ComboFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 on_value_change: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
         self.on_value_change = on_value_change
 
         self.combo_box = QtW.QComboBox()
         self.combo_box.addItems(self.quantity_info['combos'])
         self.combo_box.setToolTip(self.quantity_info['tool_tip'])
+        self.combo_box.currentIndexChanged.connect(self.set_value)
+
+        # set context menu
+        self.combo_box.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.combo_box.customContextMenuRequested.connect(self.custom_context_menu_event)
 
         self.layout.addWidget(self.combo_box, self.value_weight)
-
         self.setLayout(self.layout)
 
     @QuantityFrame.value.getter
@@ -146,13 +177,15 @@ class ComboFrame(QuantityFrame):
 
 
 class ComplexFrame(QuantityFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
 
 
 class DoubleFrame(QuantityFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
 
         self.spin_box = QtW.QDoubleSpinBox()
 
@@ -161,11 +194,15 @@ class DoubleFrame(QuantityFrame):
         high = float(quantity_info["high_lim"])
         self.spin_box.setMinimum(low)
         self.spin_box.setMaximum(high)
+
         self.spin_box.setSuffix(f" {self.quantity_info['unit']}")
         self.spin_box.setToolTip(self.quantity_info['tool_tip'])
+        self.spin_box.valueChanged.connect(self.set_value)
+
+        self.spin_box.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.spin_box.customContextMenuRequested.connect(self.custom_context_menu_event)
 
         self.layout.addWidget(self.spin_box, self.value_weight)
-
         self.setLayout(self.layout)
 
         # set quantity value to default value
@@ -174,53 +211,57 @@ class DoubleFrame(QuantityFrame):
     @QuantityFrame.value.getter
     def value(self):
         return self.spin_box.value()
-    
+
     def handle_incoming_value(self, value):
         self.spin_box.setValue(float(value))
-        
+
 
 class PathFrame(QuantityFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
 
 
 class StringFrame(QuantityFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
 
 
 class VectorFrame(QuantityFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
         self.setLayout(self.layout)
 
 
 class VectorComplexFrame(QuantityFrame):
-    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable):
-        super().__init__(quantity_info, set_value_method, get_value_method)
+    def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
+                 logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, logger)
 
 
 def quantity_frame_factory(quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                           on_value_change: Callable = None):
+                           logger: logging.Logger, on_value_change: Callable = None):
     match quantity_info['data_type'].upper():
         case 'BOOLEAN':
-            return BooleanFrame(quantity_info, set_value_method, get_value_method)
+            return BooleanFrame(quantity_info, set_value_method, get_value_method, logger)
         case 'BUTTON':
-            return ButtonFrame(quantity_info, set_value_method, get_value_method)
+            return ButtonFrame(quantity_info, set_value_method, get_value_method, logger)
         case 'COMBO':
-            return ComboFrame(quantity_info, set_value_method, get_value_method, on_value_change)
+            return ComboFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'COMPLEX':
-            return ComplexFrame(quantity_info, set_value_method, get_value_method)
+            return ComplexFrame(quantity_info, set_value_method, get_value_method, logger)
         case 'DOUBLE':
-            return DoubleFrame(quantity_info, set_value_method, get_value_method)
+            return DoubleFrame(quantity_info, set_value_method, get_value_method, logger)
         case 'PATH':
-            return PathFrame(quantity_info, set_value_method, get_value_method)
+            return PathFrame(quantity_info, set_value_method, get_value_method, logger)
         case 'STRING':
-            return StringFrame(quantity_info, set_value_method, get_value_method)
+            return StringFrame(quantity_info, set_value_method, get_value_method, logger)
         case 'VECTOR':
-            return VectorFrame(quantity_info, set_value_method, get_value_method)
+            return VectorFrame(quantity_info, set_value_method, get_value_method, logger)
         case 'VECTOR_COMPLEX':
-            return VectorComplexFrame(quantity_info, set_value_method, get_value_method)
+            return VectorComplexFrame(quantity_info, set_value_method, get_value_method, logger)
 
 
 class QuantityGroupBox(QtW.QGroupBox):
