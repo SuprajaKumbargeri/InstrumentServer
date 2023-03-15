@@ -4,12 +4,19 @@ import logging
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
-import os
 import db
 import instrument_connection_service
 from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
+from enum import Enum
 
+class INST_INTERFACE(Enum):
+    USB = 'USB'
+    GPIB = 'GPIB'
+    TCPIP = 'TCPIP'
+    SERIAL = 'SERIAL'
+    ASRL = 'ASRL'
+    COM = 'COM'
 
 ###################################################################################
 # InstrumentServerWindow
@@ -31,12 +38,6 @@ class InstrumentServerWindow(QMainWindow):
 
         # The parent flask application
         self.flask_app = flask_app
-
-        # Get the current working directory
-        cwd = os.getcwd()
-
-        # Print the current working directory
-        print("Current working directory: {0}".format(cwd))
 
         self.green_icon = QIcon("../Icons/greenIcon.png")
         self.red_icon = QIcon("../Icons/redIcon.png")
@@ -86,7 +87,7 @@ class InstrumentServerWindow(QMainWindow):
 
         self._ics = instrument_connection_service.InstrumentConnectionService(self.get_logger())
 
-        print('Done initializing Instrument Server GUI')
+        self.my_logger.info('Done initializing Instrument Server GUI')
 
     def get_logger(self):
         """Get the application logger"""
@@ -212,25 +213,25 @@ class InstrumentServerWindow(QMainWindow):
         print('Add was clicked')
         dlg = AddInstrumentWindow()
 
-        if dlg.exec():            
-            if not dlg.name_line.text() or not dlg.path_line.text() or (dlg.interface_choice.currentText() == "TCPIP" and not dlg.address_line.text()):
+        if dlg.exec():
+            if not dlg.name_line.text() or not dlg.path_line.text() or not dlg.address_line.text():
                 msgBox = QMessageBox(self)
                 msg = "Failed to add instrument. Please provide complete details."
                 msgBox.setWindowTitle("Add Instrument")
                 msgBox.setText(msg)
                 msgBox.exec()
-                print('Failed')
+                self.get_logger().debug('Missing required fields')
 
             else:
-                if dlg.interface_choice.currentText() != "TCPIP": dlg.address_line.setText("")
                 details = {"cute_name": dlg.name_line.text().strip(),
-                   "interface": dlg.interface_choice.currentText(),
-                   "ip_address": dlg.address_line.text().strip(),
-                   "serial": str(dlg.serial_check.isChecked()),
-                   "visa": str(dlg.visa_check.isChecked()),
-                   "path": dlg.path_line.text()}
+                           "interface": dlg.interface_choice.currentText(),
+                           "address": dlg.address_line.text().strip(),
+                           "baud_rate": dlg.baud_rate_line.text().strip(),
+                           "serial": str(dlg.serial_check.isChecked()),
+                           "visa": str(dlg.visa_check.isChecked()),
+                           "path": dlg.path_line.text()}
                 connect_result, msg = self._ics.add_instrument_to_database(details)
-                
+
                 if not connect_result: msg = "Failed. " + msg
                 msgBox = QMessageBox(self)
                 msgBox.setWindowTitle("Status")
@@ -238,13 +239,14 @@ class InstrumentServerWindow(QMainWindow):
                 msgBox.exec()
                 self.get_known_instruments()
         else:
-            print('Cancelled')
+            self.get_logger().debug('User hit cancel')
 
     def remove_btn_clicked(self):
-        print('Remove was clicked')
+        self.get_logger().debug('Remove was clicked')
         button = QMessageBox.question(self, "Remove Instrument",
-                                      "Are you sure you want to remove the instrument '{}'?".format(self.currently_selected_instrument))
-        
+                                      "Are you sure you want to remove the instrument '{}'?".format(
+                                          self.currently_selected_instrument))
+
         if button == QMessageBox.StandardButton.Yes:
             msg = self._ics.remove_instrument_from_database(self.currently_selected_instrument)
             msgBox = QMessageBox(self)
@@ -279,7 +281,7 @@ class InstrumentServerWindow(QMainWindow):
         self.get_logger().debug('Connect All was clicked')
 
         failed_connections = []
-        
+
         # iterate through instrument_tree and connect to instrument
         qtiter = QTreeWidgetItemIterator(self.instrument_tree)
         while qtiter.value():
@@ -302,7 +304,8 @@ class InstrumentServerWindow(QMainWindow):
             current_item = self.instrument_tree.currentItem()
             current_item.setIcon(0, self.red_icon)
         except KeyError:
-            QMessageBox.information(self, 'Instrument is not currently connected.', 'Instrument is not currently connected.')
+            QMessageBox.information(self, 'Instrument is not currently connected.',
+                                    'Instrument is not currently connected.')
         except Exception as e:
             QMessageBox.critical(self, 'Unknown Error', e)
 
@@ -370,14 +373,20 @@ class InstrumentServerWindow(QMainWindow):
                         cute_name = instrument[0]
                         manufacturer = instrument[1]
                         interface = instrument[2]
-                        ip_address = instrument[3]
+                        address = instrument[3]
                         serial = instrument[4]
-                        via = instrument[5]
+                        visa = instrument[5]
+
+                        # The actual address to be displayed
+                        display_address = address
+
+                        if interface == INST_INTERFACE.GPIB.name:
+                            display_address = f'{interface}::{address}'
 
                         # If an IP Address was provided, use it for Address column, otherwise use the Interface
                         self.add_instrument_to_list(manufacturer,
                                                     cute_name,
-                                                    (ip_address if ip_address != None else interface))
+                                                    display_address)
 
             except Exception as ex:
                 self.get_logger().fatal(f'There was a problem getting all known instruments: {ex}')
@@ -395,7 +404,7 @@ class InstrumentServerWindow(QMainWindow):
         if not self._ics.is_connected(cute_name):
             self.connect_btn_clicked()
             return
-        
+
         try:
             instrument_manager = self._ics.get_instrument_manager(cute_name)
         except Exception as e:
@@ -404,40 +413,50 @@ class InstrumentServerWindow(QMainWindow):
 
         self.quantity_manager_gui = InstrumentManagerGUI(instrument_manager)
 
+
 class AddInstrumentWindow(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Add Instrument")
+        self.setWindowTitle("Add New Instrument")
+        self.is_baud_rate_visible = False
+
+        # * Indicates a required field
 
         # Box 1 for driver file input
-        self.file_message = QLabel("File path:")
+        self.file_message = QLabel("File path: *")
         self.path_line = QLineEdit()
-        self.filebutton = QPushButton("Select File")
+        self.filebutton = QPushButton("Select File*")
         self.filebutton.clicked.connect(self.getFilePath)
 
         file_input_hbox = QHBoxLayout()
         file_input_hbox.addWidget(self.path_line)
         file_input_hbox.addWidget(self.filebutton)
 
-        file_input_vbox = QVBoxLayout()        
+        file_input_vbox = QVBoxLayout()
         file_input_vbox.addWidget(self.file_message)
         file_input_vbox.addLayout(file_input_hbox)
 
         self.file_group_box = QGroupBox("Instrument Driver")
-        self.file_group_box.setLayout(file_input_vbox)              
+        self.file_group_box.setLayout(file_input_vbox)
 
         # Box 2 for communication input
         self.name_line = QLineEdit()
         self.interface_choice = QComboBox()
         self.interface_choice.addItems(["TCPIP", "USB", "GPIB"])
         self.address_line = QLineEdit()
+        self.baud_rate_line = QLineEdit()
 
-        comm_form_layout = QFormLayout()
-        comm_form_layout.addRow(QLabel("Name:"), self.name_line)
-        comm_form_layout.addRow(QLabel("Interface:"), self.interface_choice)
-        comm_form_layout.addRow(QLabel("Address:"), self.address_line)
-                
+        self.comm_form_layout = QFormLayout()
+        self.comm_form_layout.insertRow(0, QLabel("Name: *"), self.name_line)
+        self.comm_form_layout.insertRow(1, QLabel("Interface: *"), self.interface_choice)
+        self.comm_form_layout.insertRow(2, QLabel("Address: *"), self.address_line)
+
+        # Only visible if the "Serial" checkbox is checked
+        self.comm_form_layout.insertRow(3, QLabel("Baud Rate:"), self.baud_rate_line)
+        self.hide_baud_rate()
+
         self.serial_check = QCheckBox("Serial")
+        self.serial_check.clicked.connect(self.serial_checkbox_clicked)
         self.visa_check = QCheckBox("VISA instrument")
 
         comm_input_hbox = QHBoxLayout()
@@ -445,12 +464,12 @@ class AddInstrumentWindow(QDialog):
         comm_input_hbox.addWidget(self.visa_check)
 
         comm_input_vbox = QVBoxLayout()
-        comm_input_vbox.addLayout(comm_form_layout)
+        comm_input_vbox.addLayout(self.comm_form_layout)
         comm_input_vbox.addLayout(comm_input_hbox)
 
         self.comm_group_box = QGroupBox("Communication")
-        self.comm_group_box.setLayout(comm_input_vbox)        
-       
+        self.comm_group_box.setLayout(comm_input_vbox)
+
         # Box 3 for Ok and Cancel inputs
         question_buttons = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         self.button_box = QDialogButtonBox(question_buttons)
@@ -465,11 +484,27 @@ class AddInstrumentWindow(QDialog):
         self.setLayout(self.layout)
         self.setFixedWidth(400)
 
-    def getFilePath(self):        
+    def getFilePath(self):
         file_filter = 'Configuration File (*.ini);; Python File (*.py)'
         initial_filter = 'Configuration File (*.ini)'
-        fileName = QFileDialog.getOpenFileName(parent = self, caption = "Select File", directory = "C:\\", filter = file_filter, initialFilter = initial_filter )
+        fileName = QFileDialog.getOpenFileName(parent=self, caption="Select File", directory="C:\\", filter=file_filter,
+                                               initialFilter=initial_filter)
         self.path_line.setText(fileName[0])
+
+    def show_baud_rate(self):
+        self.is_baud_rate_visible = True
+        self.comm_form_layout.setRowVisible(3, True)
+
+    def hide_baud_rate(self):
+        self.is_baud_rate_visible = False
+        self.comm_form_layout.setRowVisible(3, False)
+
+    def serial_checkbox_clicked(self):
+        if self.is_baud_rate_visible:
+            self.hide_baud_rate()
+        else:
+            self.show_baud_rate()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
