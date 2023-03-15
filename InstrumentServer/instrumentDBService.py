@@ -270,3 +270,11 @@ def deleteInstrument(connection: object, cute_name: str):
             delete_instrument_query = "DELETE FROM {table_name} WHERE cute_name = '{cute_name}';".format(table_name = table, cute_name = cute_name)
             cursor.execute(delete_instrument_query)
             connection.commit()
+
+
+def update_visa_baud_rate(connection: object, cute_name: str, new_baud_rate):
+    table = 'visa'
+    with connection.cursor() as cursor:
+        query = f"UPDATE {table} SET baud_rate= '{new_baud_rate}' WHERE cute_name= '{cute_name}';"
+        cursor.execute(query)
+        connection.commit()

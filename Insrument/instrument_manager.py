@@ -49,7 +49,6 @@ class InstrumentManager:
         self._startup()
 
     def _get_driver(self):
-        self._logger.debug('Getting the driver...')
         """Communicates with instrument server to get driver for instrument"""
         # implementation will likely change
         url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
@@ -61,12 +60,10 @@ class InstrumentManager:
             response.raise_for_status()
 
     def _initialize_instrument(self, connection):
-        self._logger.debug('Connecting to instrument...')
         """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
         # string passed through in VISA form
         if isinstance(connection, str):
             self._rm = ResourceManager()
-            self._logger.debug('Got ResourceManager...')
 
             if self._is_serial_instrument():
                 # The actual terminating chars as str
@@ -80,7 +77,8 @@ class InstrumentManager:
                 # To connect a serial instrument, baud_rate and read_termination is required
                 self._instrument = self._rm.open_resource(resource_name=connection,
                                                           read_termination=read_term,
-                                                          baud_rate=self._baud_rate)
+                                                          baud_rate=self._baud_rate,
+                                                          open_timeout=10000)
             else:
                 self._logger.debug('Connecting to VISA instrument: {} using: {}'.format(self.name, connection))
                 self._instrument = self._rm.open_resource(connection)
