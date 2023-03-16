@@ -418,13 +418,11 @@ class InstrumentManager:
         # Instrument will return instrument-defined value, convert it to driver-defined value
         elif quantity_dict['data_type'].upper() == 'COMBO':
             value = value.strip()
-            # combo quantity contains no states or commands
-            if not quantity_dict['combo_cmd']:
-                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
-                
-            # .keys() contains driver-defined value, .values() contains instrument-defined values
-            for key in (combo.strip() for combo in quantity_dict['combo_cmd'].keys()):
-                if value.strip() == quantity_dict['combo_cmd'][key].strip():
+
+            # key contains driver-defined value, cmd contains instrument-defined value
+            # need to return driver-defined value
+            for key, cmd in quantity_dict['combo_cmd'].items():
+                if value in (key.strip(), cmd.strip()):
                     return key
 
             raise ValueError(f"{self.name} returned an invalid value for {quantity}. {value} is not a valid combo value. Please check instrument driver.")
