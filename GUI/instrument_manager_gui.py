@@ -54,8 +54,8 @@ class InstrumentManagerGUI(QWidget):
         for quantity in self._im.quantity_names:
             quantity_info = self._im.get_quantity_info(quantity)
 
-            frame = quantity_frame_factory(quantity_info, self._im.set_value,
-                                           self._im.get_value, self.logger, self.handle_quant_value_change)
+            frame = quantity_frame_factory(quantity_info, self._im.get_value, self._im.set_value,
+                                           self._im.set_default_value, self.handle_quant_value_change, self.logger)
             frame.setFixedHeight(40)
 
             # store all frames in a lookup list

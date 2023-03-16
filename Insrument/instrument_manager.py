@@ -145,9 +145,6 @@ class InstrumentManager:
         else:
             return
 
-        for quantity in _quantities:
-            self.set_default_value(quantity)
-
     def close(self):
         """Sends final command to instrument if defined in driver and closes instrument and related resources"""
         # send final command
@@ -171,6 +168,7 @@ class InstrumentManager:
 
     def write(self, msg):
         if msg:
+            self._logger.debug(f"Writing '{msg}' to '{self.name}.'")
             self._instrument.write(msg)
 
     def read(self):
@@ -260,6 +258,7 @@ class InstrumentManager:
             quantity_info['combos'] = list()
 
         quantity_info['name'] = quantity
+        quantity_info['latest_value'] = self.get_latest_value(quantity)
         return quantity_info
 
     def get_value(self, quantity):
@@ -268,14 +267,19 @@ class InstrumentManager:
             quantity -- Quantity name as provided in instrument driver
         """
         value = self.ask(self._driver['quantities'][quantity]['get_cmd'])
+        self._logger.info(f"'{quantity}' is set to '{value}.'")
+
+        # Update latest value in DB in case it is incorrect
+        self._set_latest_value(quantity, value)
+
         return self.convert_return_value(quantity, value)
 
-    def get_last_known_value(self, quantity):
+    def get_latest_value(self, quantity):
         url = r'http://127.0.0.1:5000/instrumentDB/getLatestValue'
-        response = requests.get(url, params={'cute_name': self._name})
+        response = requests.get(url, params={'cute_name': self._name, 'label': quantity})
 
         if 300 > response.status_code >= 200:
-            self._driver = dict(response.json())
+            return dict(response.json())['latest_value']
         else:
             response.raise_for_status()
 
@@ -306,7 +310,15 @@ class InstrumentManager:
         else:
             cmd += f' {value}'
 
+        self._logger.debug(f"'{quantity}' is set to '{value}.'")
         self._instrument.write(cmd)
+        self._set_latest_value(quantity, value)
+
+    def _set_latest_value(self, quantity, value):
+        url = r'http://127.0.0.1:5000/instrumentDB/setLatestValue'
+        response = requests.put(url, params={'cute_name': self._name, 'label': quantity, 'latest_value': value})
+        if response.status_code >= 300:
+            response.raise_for_status()
 
     def _check_limits(self, quantity, value):
         """Checks value against the limits or state values (for a combo) of a quantity
