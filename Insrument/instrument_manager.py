@@ -268,7 +268,7 @@ class InstrumentManager:
             quantity -- Quantity name as provided in instrument driver
         """
         value = self.ask(self._driver['quantities'][quantity]['get_cmd'])
-        return self._convert_return_value(quantity, value)
+        return self.convert_return_value(quantity, value)
 
     def get_last_known_value(self, quantity):
         url = r'http://127.0.0.1:5000/instrumentDB/getLatestValue'
@@ -297,7 +297,7 @@ class InstrumentManager:
         """
         self._check_limits(quantity, value)
 
-        value = self._convert_value(quantity, value)
+        value = self.convert_value(quantity, value)
 
         # add the value to the command and write to instrument
         cmd = self._driver['quantities'][quantity]['set_cmd']
@@ -336,15 +336,15 @@ class InstrumentManager:
             if value not in (valid_states or valid_cmds):
                 raise ValueError(f"{value} is not a recognized state of {quantity}'s states. Valid states are {valid_states}.")
 
-    def _convert_value(self, quantity, value):
-        """Converts given value to pre-defined value in driver or returns the given value is N/A to convert
+    def convert_value(self, quantity, value):
+        """Converts given value from user form to command form
             Parameters:
                 quantity -- quantity that holds the pre-defined value
                 value -- value that needs converting
             Returns:
                 Converted value
             Raises:
-                ValueError if quantity is a boolean but a boolean value is not provided
+                ValueError
         """
         quantity_dict = self._driver['quantities'][quantity]
 
@@ -381,7 +381,16 @@ class InstrumentManager:
         else:
             return value
 
-    def _convert_return_value(self, quantity, value):
+    def convert_return_value(self, quantity, value):
+        """Converts given value from command form to user form
+            Parameters:
+                quantity -- quantity that holds the pre-defined value
+                value -- value that needs converting
+            Returns:
+                Converted value
+            Raises:
+                ValueError
+        """
         quantity_dict = self._driver['quantities'][quantity]
 
         # change driver specified boolean values to boolean value

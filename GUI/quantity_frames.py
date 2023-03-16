@@ -3,14 +3,16 @@ from PyQt6.QtGui import QFont, QAction, QCursor
 from typing import Callable
 import logging
 
+
 class QuantityFrame(QtW.QFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
+                 on_value_change: Callable, logger: logging.Logger):
         super().__init__()
 
         self.quantity_info = quantity_info
         self.set_value_method = set_value_method
         self.get_value_method = get_value_method
+        self.on_value_change = on_value_change
         self.logger = logger
         self.label_weight = 1
         self.value_weight = 2
@@ -73,6 +75,7 @@ class QuantityFrame(QtW.QFrame):
 
     def set_value(self):
         self.set_value_method(self.quantity_info['name'], self.value)
+        self.on_value_change(self.quantity_info['name'], self.value)
         self.logger.info(f"{self.name} is being set to '{self.value}'.")
 
     def get_value(self):
@@ -91,8 +94,8 @@ class QuantityFrame(QtW.QFrame):
 
 class BooleanFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
 
         # Create button group and connect to method
         self.button_group = QtW.QButtonGroup()
@@ -136,18 +139,19 @@ class BooleanFrame(QuantityFrame):
     def handle_incoming_value(self, value):
         self.true_radio_button.setChecked(value)
         self.false_radio_button.setChecked(not value)
+        self.on_value_change(self.quantity_info['name'], self.value)
 
 
 class ButtonFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
 
 
 class ComboFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
                  on_value_change: Callable, logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         self.on_value_change = on_value_change
 
         self.combo_box = QtW.QComboBox()
@@ -166,26 +170,21 @@ class ComboFrame(QuantityFrame):
     def value(self):
         return self.combo_box.currentText()
 
-    def set_value(self):
-        """Overrides and calls QuantityGroup set_value. Afterwards, it calls the handler method that was passed through
-        at instantiation"""
-        super().set_value()
-        self.on_value_change(self.quantity_info['name'], self.value)
-
     def handle_incoming_value(self, value):
         self.combo_box.setCurrentText(value)
+        self.on_value_change(self.quantity_info['name'], self.value)
 
 
 class ComplexFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
 
 
 class DoubleFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
 
         self.spin_box = QtW.QDoubleSpinBox()
 
@@ -214,54 +213,55 @@ class DoubleFrame(QuantityFrame):
 
     def handle_incoming_value(self, value):
         self.spin_box.setValue(float(value))
+        self.on_value_change(self.quantity_info['name'], self.value)
 
 
 class PathFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
 
 
 class StringFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
 
 
 class VectorFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         self.setLayout(self.layout)
 
 
 class VectorComplexFrame(QuantityFrame):
     def __init__(self, quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
-                 logger: logging.Logger):
-        super().__init__(quantity_info, set_value_method, get_value_method, logger)
+                 on_value_change: Callable, logger: logging.Logger):
+        super().__init__(quantity_info, set_value_method, get_value_method, on_value_change, logger)
 
 
 def quantity_frame_factory(quantity_info: dict, set_value_method: Callable, get_value_method: Callable,
                            logger: logging.Logger, on_value_change: Callable = None):
     match quantity_info['data_type'].upper():
         case 'BOOLEAN':
-            return BooleanFrame(quantity_info, set_value_method, get_value_method, logger)
+            return BooleanFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'BUTTON':
-            return ButtonFrame(quantity_info, set_value_method, get_value_method, logger)
+            return ButtonFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'COMBO':
             return ComboFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'COMPLEX':
-            return ComplexFrame(quantity_info, set_value_method, get_value_method, logger)
+            return ComplexFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'DOUBLE':
-            return DoubleFrame(quantity_info, set_value_method, get_value_method, logger)
+            return DoubleFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'PATH':
-            return PathFrame(quantity_info, set_value_method, get_value_method, logger)
+            return PathFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'STRING':
-            return StringFrame(quantity_info, set_value_method, get_value_method, logger)
+            return StringFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'VECTOR':
-            return VectorFrame(quantity_info, set_value_method, get_value_method, logger)
+            return VectorFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
         case 'VECTOR_COMPLEX':
-            return VectorComplexFrame(quantity_info, set_value_method, get_value_method, logger)
+            return VectorComplexFrame(quantity_info, set_value_method, get_value_method, on_value_change, logger)
 
 
 class QuantityGroupBox(QtW.QGroupBox):

@@ -55,7 +55,7 @@ class InstrumentManagerGUI(QWidget):
             quantity_info = self._im.get_quantity_info(quantity)
 
             frame = quantity_frame_factory(quantity_info, self._im.set_value,
-                                           self._im.get_value, self.logger, self.handle_combo_change)
+                                           self._im.get_value, self.logger, self.handle_quant_value_change)
             frame.setFixedHeight(40)
 
             # store all frames in a lookup list
@@ -120,14 +120,16 @@ class InstrumentManagerGUI(QWidget):
             else:
                 section.setHidden(True)
 
-    def handle_combo_change(self, quantity_name, state_value):
-        """Called by ComboFrame when the combo's value is changed.
+    def handle_quant_value_change(self, state_quant_name, state_value):
+        """Called by QuantityFrame when the quantity's value is changed.
         Sets visibility of other quantities depending on new value"""
         for quantity_frame in self.quantity_frames:
-            if quantity_frame.state_quant != quantity_name:
+            # Not dependent on the quantity that changed
+            if quantity_frame.state_quant != state_quant_name:
                 continue
 
-            if state_value in quantity_frame.state_values:
+            # the list is populated with quantity.state_values in user form
+            if state_value in (self._im.convert_return_value(state_quant_name, v) for v in quantity_frame.state_values):
                 quantity_frame.setHidden(False)
                 self.logger.debug(f"{quantity_frame.name} is now visible.")
             else:
