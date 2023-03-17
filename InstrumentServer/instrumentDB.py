@@ -128,8 +128,9 @@ def getLatestValue():
         return jsonify(Exception.args), 400
 
 
+
 ''' Set latest value of label '''
-@bp.route('/setLatestValue')
+@bp.route('/setLatestValue', methods = ['PUT'])
 def setLatestValue():
     try:
         instrument_name = request.args['cute_name']

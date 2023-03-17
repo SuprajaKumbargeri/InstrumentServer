@@ -87,13 +87,13 @@ class InstrumentConnectionService:
 
     def disconnect_all_instruments(self):
         instr_names = list(self._connected_instruments.keys())
-        list_of_failures = ()
+        list_of_failures = list()
 
         for instrument_name in instr_names:
             try:
                 self.disconnect_instrument(instrument_name)
             except:
-                list_of_failures
+                list_of_failures.append(instrument_name)
 
         if len(list_of_failures) > 0:
             raise Exception(f"Failed to disconnect from the following instruments: {list_of_failures}")

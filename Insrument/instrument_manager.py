@@ -145,9 +145,6 @@ class InstrumentManager:
         else:
             return
 
-        for quantity in _quantities:
-            self.set_default_value(quantity)
-
     def close(self):
         """Sends final command to instrument if defined in driver and closes instrument and related resources"""
         # send final command
@@ -171,6 +168,7 @@ class InstrumentManager:
 
     def write(self, msg):
         if msg:
+            self._logger.debug(f"Writing '{msg}' to '{self.name}.'")
             self._instrument.write(msg)
 
     def read(self):
@@ -260,6 +258,7 @@ class InstrumentManager:
             quantity_info['combos'] = list()
 
         quantity_info['name'] = quantity
+        quantity_info['latest_value'] = self.get_latest_value(quantity)
         return quantity_info
 
     def get_value(self, quantity):
@@ -268,7 +267,21 @@ class InstrumentManager:
             quantity -- Quantity name as provided in instrument driver
         """
         value = self.ask(self._driver['quantities'][quantity]['get_cmd'])
-        return self._convert_return_value(quantity, value)
+        self._logger.info(f"'{quantity}' is set to '{value}.'")
+
+        # Update latest value in DB in case it is incorrect
+        self._set_latest_value(quantity, value)
+
+        return self.convert_return_value(quantity, value)
+
+    def get_latest_value(self, quantity):
+        url = r'http://127.0.0.1:5000/instrumentDB/getLatestValue'
+        response = requests.get(url, params={'cute_name': self._name, 'label': quantity})
+
+        if 300 > response.status_code >= 200:
+            return dict(response.json())['latest_value']
+        else:
+            response.raise_for_status()
 
     def set_default_value(self, quantity):
         """Sets default value for given quantity
@@ -288,7 +301,7 @@ class InstrumentManager:
         """
         self._check_limits(quantity, value)
 
-        value = self._convert_value(quantity, value)
+        value = self.convert_value(quantity, value)
 
         # add the value to the command and write to instrument
         cmd = self._driver['quantities'][quantity]['set_cmd']
@@ -297,7 +310,15 @@ class InstrumentManager:
         else:
             cmd += f' {value}'
 
+        self._logger.debug(f"'{quantity}' is set to '{value}.'")
         self._instrument.write(cmd)
+        self._set_latest_value(quantity, value)
+
+    def _set_latest_value(self, quantity, value):
+        url = r'http://127.0.0.1:5000/instrumentDB/setLatestValue'
+        response = requests.put(url, params={'cute_name': self._name, 'label': quantity, 'latest_value': value})
+        if response.status_code >= 300:
+            response.raise_for_status()
 
     def _check_limits(self, quantity, value):
         """Checks value against the limits or state values (for a combo) of a quantity
@@ -327,15 +348,15 @@ class InstrumentManager:
             if value not in (valid_states or valid_cmds):
                 raise ValueError(f"{value} is not a recognized state of {quantity}'s states. Valid states are {valid_states}.")
 
-    def _convert_value(self, quantity, value):
-        """Converts given value to pre-defined value in driver or returns the given value is N/A to convert
+    def convert_value(self, quantity, value):
+        """Converts given value from user form to command form
             Parameters:
                 quantity -- quantity that holds the pre-defined value
                 value -- value that needs converting
             Returns:
                 Converted value
             Raises:
-                ValueError if quantity is a boolean but a boolean value is not provided
+                ValueError
         """
         quantity_dict = self._driver['quantities'][quantity]
 
@@ -372,7 +393,16 @@ class InstrumentManager:
         else:
             return value
 
-    def _convert_return_value(self, quantity, value):
+    def convert_return_value(self, quantity, value):
+        """Converts given value from command form to user form
+            Parameters:
+                quantity -- quantity that holds the pre-defined value
+                value -- value that needs converting
+            Returns:
+                Converted value
+            Raises:
+                ValueError
+        """
         quantity_dict = self._driver['quantities'][quantity]
 
         # change driver specified boolean values to boolean value
@@ -388,13 +418,11 @@ class InstrumentManager:
         # Instrument will return instrument-defined value, convert it to driver-defined value
         elif quantity_dict['data_type'].upper() == 'COMBO':
             value = value.strip()
-            # combo quantity contains no states or commands
-            if not quantity_dict['combo_cmd']:
-                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
-                
-            # .keys() contains driver-defined value, .values() contains instrument-defined values
-            for key in (combo.strip() for combo in quantity_dict['combo_cmd'].keys()):
-                if value.strip() == quantity_dict['combo_cmd'][key].strip():
+
+            # key contains driver-defined value, cmd contains instrument-defined value
+            # need to return driver-defined value
+            for key, cmd in quantity_dict['combo_cmd'].items():
+                if value in (key.strip(), cmd.strip()):
                     return key
 
             raise ValueError(f"{self.name} returned an invalid value for {quantity}. {value} is not a valid combo value. Please check instrument driver.")
