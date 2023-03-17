@@ -79,15 +79,23 @@ class QuantityFrame(QtW.QFrame):
             value = self.get_value_method(self.quantity_info['name'])
             self.handle_incoming_value(value)
         except Exception as e:
-            print(e)
-            QtW.QMessageBox.critical(self, 'Error', str(e))
+            self.logger.error(f"Error querying '{self.name}': {e}")
+            QtW.QMessageBox.critical(self, f"Error querying '{self.name}'", str(e))
 
     def set_value(self):
-        self.set_value_method(self.quantity_info['name'], self.value)
-        self.on_value_change(self.quantity_info['name'], self.value)
+        try:
+            self.set_value_method(self.quantity_info['name'], self.value)
+            self.on_value_change(self.quantity_info['name'], self.value)
+        except Exception as e:
+            self.logger.error(f"Error setting '{self.name}': {e}")
+            QtW.QMessageBox.critical(self, f"Error setting '{self.name}'", str(e))
 
     def set_default_value(self):
-        self.set_def_val_method(self.name)
+        try:
+            self.set_def_val_method(self.name)
+        except Exception as e:
+            self.logger.error(f"Error setting '{self.name}': {e}")
+            QtW.QMessageBox.critical(self, f"Error setting '{self.name}'", str(e))
         self.get_value()
 
     def handle_incoming_value(self, value):
@@ -245,6 +253,9 @@ class VectorFrame(QuantityFrame):
                  set_def_val_method: Callable, on_value_change: Callable, logger: logging.Logger):
         super().__init__(quantity_info, get_value_method, set_value_method, set_def_val_method, on_value_change, logger)
         self.setLayout(self.layout)
+
+    def set_default_value(self):
+        pass
 
 
 class VectorComplexFrame(QuantityFrame):

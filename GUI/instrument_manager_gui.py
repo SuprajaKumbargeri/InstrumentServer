@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QTreeWidget, QTreeWidgetItem)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QTreeWidget, QTreeWidgetItem, QPushButton, QFrame)
 from Insrument.instrument_manager import InstrumentManager
 from GUI.quantity_frames import *
 import logging
@@ -14,6 +14,15 @@ class InstrumentManagerGUI(QWidget):
         self.section_frames = dict()
         self.section_tree_weight = 1
         self.section_data_weight = 3
+
+        # set up header
+        self.default_value_btn = QPushButton("Set all to default value")
+        self.default_value_btn.clicked.connect(self._set_all_default_value)
+        header_layout = QHBoxLayout()
+        header_layout.addStretch()
+        header_layout.addWidget(self.default_value_btn)
+        header_widget = QWidget()
+        header_widget.setLayout(header_layout)
 
         self.scroll_layout = QVBoxLayout()
 
@@ -40,7 +49,14 @@ class InstrumentManagerGUI(QWidget):
         main_layout = QHBoxLayout()
         main_layout.addWidget(self.section_tree, self.section_tree_weight)
         main_layout.addWidget(self.scroll_area, self.section_data_weight)
-        self.setLayout(main_layout)
+        main_widget = QWidget()
+        main_widget.setLayout(main_layout)
+
+        full_layout = QVBoxLayout()
+        full_layout.addWidget(header_widget)
+        full_layout.addWidget(main_widget)
+
+        self.setLayout(full_layout)
 
         self.setWindowTitle(f"{self._im.name} Manager")
         self.show()
@@ -109,7 +125,12 @@ class InstrumentManagerGUI(QWidget):
         self.section_tree.itemSelectionChanged.connect(self._handle_section_change)
         self.section_tree.setCurrentItem(self.section_tree.topLevelItem(0))
 
-        return self.section_tree
+
+    def _set_all_default_value(self):
+        """Sets default value to all visible quantities"""
+        for quantity_frame in self.quantity_frames:
+            if quantity_frame.isVisible():
+                quantity_frame.set_default_value()
 
     def _handle_section_change(self):
         selected_section_name = self.section_tree.currentItem().text(0)
