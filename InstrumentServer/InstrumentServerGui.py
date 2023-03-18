@@ -10,6 +10,7 @@ from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
 from enum import Enum
 
+
 class INST_INTERFACE(Enum):
     USB = 'USB'
     GPIB = 'GPIB'
@@ -17,6 +18,7 @@ class INST_INTERFACE(Enum):
     SERIAL = 'SERIAL'
     ASRL = 'ASRL'
     COM = 'COM'
+
 
 ###################################################################################
 # InstrumentServerWindow
@@ -31,6 +33,8 @@ class InstrumentServerWindow(QMainWindow):
 
         # Convenience flag preventing VISA/DB aspects from being automatically called at startup
         self.dev_machine = False
+        # key: instrument cute name, value: instrument type - VISA or NONE_VISA
+        self.instrument_type = {}
 
         super(InstrumentServerWindow, self).__init__()
 
@@ -265,9 +269,14 @@ class InstrumentServerWindow(QMainWindow):
             return
 
         try:
-            self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
-            current_item = self.instrument_tree.currentItem()
-            current_item.setIcon(0, self.green_icon)
+            if self.instrument_type[self.currently_selected_instrument] == "VISA":
+                self._ics.connect_to_visa_instrument(self.currently_selected_instrument)
+                current_item = self.instrument_tree.currentItem()
+                current_item.setIcon(0, self.green_icon)
+            else:
+                self._ics.connect_to_none_visa_instrument(self.currently_selected_instrument)
+                current_item = self.instrument_tree.currentItem()
+                current_item.setIcon(0, self.green_icon)
 
         except ValueError as e:
             QMessageBox.information(self, 'Instrument is already connected.', 'Instrument is already connected.')
@@ -287,7 +296,10 @@ class InstrumentServerWindow(QMainWindow):
         while qtiter.value():
             try:
                 current_item = qtiter.value()
-                self._ics.connect_to_visa_instrument(current_item.text(1))
+                if self.instrument_type[current_item.text(1)] == "VISA":
+                    self._ics.connect_to_visa_instrument(current_item.text(1))
+                else:
+                    self._ics.connect_to_none_visa_instrument(current_item.text(1))
                 current_item.setIcon(0, self.green_icon)
             except:
                 failed_connections.append(current_item.text(1))
@@ -325,10 +337,10 @@ class InstrumentServerWindow(QMainWindow):
                                       "Are you sure you want to exit? This will close all instruments.")
 
         if answer != QMessageBox.StandardButton.Yes:
-             # Ignore the event that brings down this window
+            # Ignore the event that brings down this window
             event.ignore()
             return
-        
+
         try:
             self._ics.disconnect_all_instruments()
         except Exception as e:
@@ -339,7 +351,7 @@ class InstrumentServerWindow(QMainWindow):
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
-            
+
         # Accept shutdown and call endpoint
         event.accept()
         url = r'http://127.0.0.1:5000/shutDown'
@@ -376,6 +388,11 @@ class InstrumentServerWindow(QMainWindow):
                         address = instrument[3]
                         serial = instrument[4]
                         visa = instrument[5]
+
+                        if visa:
+                            self.instrument_type[cute_name] = "VISA"
+                        else:
+                            self.instrument_type[cute_name] = "NONE_VISA"
 
                         # The actual address to be displayed
                         display_address = address

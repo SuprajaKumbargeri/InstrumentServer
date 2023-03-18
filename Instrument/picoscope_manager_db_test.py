@@ -18,9 +18,7 @@ add picoscope instrument to the db
 
 '''
 simulate connect_to_visa_instrument
-
 will create connect_to_visa_instrument to handle picoscope
-
 '''
 
 cute_name = "Picoscope 6000"
@@ -46,4 +44,3 @@ except Exception as e:
     print(e)
 finally:
     ps6000._close()
-
