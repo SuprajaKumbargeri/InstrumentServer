@@ -3,7 +3,7 @@ import sys
 from time import sleep
 import logging
 
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt
 from pymeasure.display.Qt import QtWidgets
 from pymeasure.display.windows import ManagedWindow
@@ -56,6 +56,7 @@ class MainExperimentProcedure(Procedure):
     def startup(self):
         self.logger.info('startup() was called')
 
+    # Sample Data Generation...
     def execute(self):
         self.logger.info(f'Starting experiment loop of {self.steps} steps')
 
@@ -116,6 +117,9 @@ class ExperimentRunner(ManagedWindow):
 
         # A reference to the invoking GUI
         self.parent_gui = parent_gui
+
+        play_icon = QIcon("../Icons/playButton.png")
+        self.setWindowIcon(play_icon)
 
         # The logger
         self.logger = logger

@@ -53,6 +53,10 @@ class InstrumentServerWindow(QMainWindow):
         self.main_widget = QWidget()
 
         self.setWindowTitle("Instrument Server")
+
+        server_icon = QIcon("../Icons/servers.png")
+        self.setWindowIcon(server_icon)
+
         self.construct_menu()
 
         self.construct_instrument_table_header()
@@ -87,7 +91,7 @@ class InstrumentServerWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         # Setup Additional GUI
-        self.experiment_window_gui = ExperimentWindowGui(self)
+        self.experiment_window_gui = ExperimentWindowGui(self, self.my_logger)
 
         self._ics = instrument_connection_service.InstrumentConnectionService(self.get_logger())
 

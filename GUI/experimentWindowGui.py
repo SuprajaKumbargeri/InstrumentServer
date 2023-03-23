@@ -1,17 +1,26 @@
+import logging
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
+from GUI.experiment_runner_gui import ExperimentRunner
 
 
 ###################################################################################
 # ExperimentWindowGui
 ###################################################################################
 class ExperimentWindowGui(QMainWindow):
-    def __init__(self, parent_gui):
+    def __init__(self, parent_gui, logger: logging.Logger):
         super().__init__()
         self.parent_gui = parent_gui
+        self.my_logger = logger
         self.setWindowTitle('Experiment')
         self.resize(1000, 800)
+
+        lab_experiment_icon = QIcon("../Icons/labExperiment.png")
+        self.setWindowIcon(lab_experiment_icon)
+
+        # Experiment runner GUI
+        self.experiment_runner_gui = ExperimentRunner(self, self.my_logger)
 
         # This is the outermost widget or the "main" widget
         self.main_widget = QWidget()
@@ -34,6 +43,10 @@ class ExperimentWindowGui(QMainWindow):
 
         # Make the Menu Bar
         self.construct_experiment_menu_bar()
+
+    def get_logger(self):
+        """Get the application logger"""
+        return self.my_logger
 
     def construct_channels_section(self):
         """
@@ -112,6 +125,14 @@ class ExperimentWindowGui(QMainWindow):
         """
         # The main widget in for this section
         self.right_side_section = QVBoxLayout()
+
+        play_icon = QIcon("../Icons/playButton.png")
+        experiment_runner_btn = QPushButton("Experiment Runner")
+        experiment_runner_btn.setIcon(play_icon)
+        experiment_runner_btn.clicked.connect(self.show_experiment_runner_window)
+
+        self.right_side_section.addWidget(experiment_runner_btn)
+        self.right_side_section.setAlignment(experiment_runner_btn, Qt.AlignmentFlag.AlignRight)
 
         # The main widget for step sequence section
         self.step_sequence_group = QGroupBox("Step sequence")
@@ -283,6 +304,10 @@ class ExperimentWindowGui(QMainWindow):
         
         self.main_layout.addLayout(self.right_side_section)
 
+    def experiment_runner_clicked(self):
+        self.get_logger().debug('Experiment Runner clicked')
+        self.show_experiment_runner_window()
+
 
     def construct_experiment_menu_bar(self):
         """
@@ -299,6 +324,9 @@ class ExperimentWindowGui(QMainWindow):
 
         edit_menu = experiment_menu_bar.addMenu("&Edit")
         help_menu = experiment_menu_bar.addMenu("&Help")
+
+    def show_experiment_runner_window(self):
+        self.experiment_runner_gui.show()
 
     def exit_experiment_gui(self):
         """

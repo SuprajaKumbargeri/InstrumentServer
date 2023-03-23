@@ -30,3 +30,11 @@ PostgresSQL database with parsed details from instrument driver
 ### Connect with Command Prompt:
 Default schema: `public` <br>
 `psql -h localhost -p 5432 -U postgres instrument_db`
+
+---
+##### Icon Attributions 
+<a href="https://www.flaticon.com/free-icons/server" title="server icons">Server icons created by Pixel perfect - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/play-button" title="play button icons">Play button icons created by Roundicons - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/lab" title="lab icons">Lab icons created by surang - Flaticon</a>
