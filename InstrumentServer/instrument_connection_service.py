@@ -102,7 +102,7 @@ class InstrumentConnectionService:
             sys.path.append(driver)
             custom_driver = importlib.import_module(driver)
             
-            check if module exists frist, if it does, use that custom module
+            check if module exists first, if it does, use that custom module
             assumption: all custom drivers are child classes of non-visa instrument manager (picoscope_manager for now) 
             
             
