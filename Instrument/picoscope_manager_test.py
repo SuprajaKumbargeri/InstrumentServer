@@ -34,8 +34,8 @@ try:
     # print(ps6000.get_value('Amplitude'))
     # print(ps6000.get_value('Wave Type'))
 
-    # result = ps6000._signal_generator()
-    # print(result)
+    result = ps6000._signal_generator()
+    print(result)
 
 except Exception as e:
     print(e)
