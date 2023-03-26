@@ -95,6 +95,19 @@ class InstrumentConnectionService:
 
         response_dict = dict(response.json())
         try:
+            """
+            import sys
+            import importlib
+            driver = driver["general_settings"]["driver_path"]
+            sys.path.append(driver)
+            custom_driver = importlib.import_module(driver)
+            
+            check if module exists frist, if it does, use that custom module
+            assumption: all custom drivers are child classes of non-visa instrument manager (picoscope_manager for now) 
+            
+            
+            ps6000 = getattr(custom_driver, "Driver")(name=cute_name, driver=response_dict)
+            """
             pm = PicoscopeManager(cute_name, response_dict)
             self._connected_instruments[cute_name] = pm
             self.get_logger().debug(f"Connected to {cute_name}.")
