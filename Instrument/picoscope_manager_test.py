@@ -11,13 +11,14 @@ driver = dict(response.json())
 
 driver = driver["general_settings"]["driver_path"]
 sys.path.append(driver)
-my_module = importlib.import_module("Koo")
+# module path and name are the same
+my_module = importlib.import_module(driver)
 
 
 ps6000 = getattr(my_module, "Driver")(name=name, driver=driver)
 
 try:
-    print(ps6000.get_value('Frequency'))
+    # print(ps6000.get_value('Frequency'))
     # print(ps6000.get_value('Offset'))
     # print(ps6000.get_value('Amplitude'))
     # print(ps6000.get_value('Wave Type'))
