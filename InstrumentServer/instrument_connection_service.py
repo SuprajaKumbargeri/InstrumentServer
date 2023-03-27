@@ -4,7 +4,10 @@ import logging
 from enum import Enum
 from http import HTTPStatus
 from Instrument.instrument_manager import InstrumentManager
-from Instrument.picoscope_manager import PicoscopeManager
+import sys
+import importlib
+import os
+
 
 class INST_INTERFACE(Enum):
     USB = 'USB'
@@ -13,6 +16,7 @@ class INST_INTERFACE(Enum):
     SERIAL = 'SERIAL'
     ASRL = 'ASRL'
     COM = 'COM'
+
 
 class InstrumentConnectionService:
     def __init__(self, logger: logging.Logger) -> None:
@@ -95,22 +99,20 @@ class InstrumentConnectionService:
 
         response_dict = dict(response.json())
         try:
-            """
-            import sys
-            import importlib
-            driver = driver["general_settings"]["driver_path"]
-            sys.path.append(driver)
+            # importing custom driver module from the driver_path
+            # Assumption: driver_path and driver are the same
+            driver_path = response_dict["general_settings"]["driver_path"]
+            driver = response_dict["general_settings"]["driver_path"]
+
+            parent_dir = os.path.dirname(os.getcwd())
+            sys.path.append(os.path.join(parent_dir, "Instrument", driver_path))
             custom_driver = importlib.import_module(driver)
-            
-            check if module exists first, if it does, use that custom module
-            assumption: all custom drivers are child classes of non-visa instrument manager (picoscope_manager for now) 
-            
-            
-            ps6000 = getattr(custom_driver, "Driver")(name=cute_name, driver=response_dict)
-            """
-            pm = PicoscopeManager(cute_name, response_dict)
-            self._connected_instruments[cute_name] = pm
-            self.get_logger().debug(f"Connected to {cute_name}.")
+
+            im = getattr(custom_driver, "Driver")(name=cute_name, driver=response_dict, logger=self._my_logger)
+            self._connected_instruments[cute_name] = im
+
+            self.get_logger().info(f"Connected to {cute_name}.")
+
         # InstrumentManager may throw value error, this service should throw a Connection error
         except ValueError as e:
             raise ConnectionError(e)
@@ -134,13 +136,12 @@ class InstrumentConnectionService:
 
         if len(list_of_failures) > 0:
             raise Exception(f"Failed to disconnect from the following instruments: {list_of_failures}")
-        
+
     def get_instrument_manager(self, cute_name):
         if cute_name not in self._connected_instruments.keys():
             raise KeyError(f"{cute_name} is not currently connected.")
-        
-        return self._connected_instruments[cute_name]
 
+        return self._connected_instruments[cute_name]
 
     def make_conn_str_tcip_instrument(self, address: str) -> str:
         """
@@ -152,7 +153,7 @@ class InstrumentConnectionService:
         END = 'INSTR'
 
         return f'{TCPIP_INTERFACE}::{address}::{END}'
-    
+
     def add_instrument_to_database(self, details: dict):
         url = r'http://127.0.0.1:5000/instrumentDB/addInstrument'
         response = requests.post(url, json=details)
@@ -160,7 +161,7 @@ class InstrumentConnectionService:
             return True, response.json()
         else:
             return False, response.json()
-        
+
     def remove_instrument_from_database(self, cute_name: str):
 
         try:

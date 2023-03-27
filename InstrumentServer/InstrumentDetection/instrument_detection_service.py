@@ -1,6 +1,5 @@
 import logging
 import pyvisa
-from picoscope import *
 from . instrument_resource import InstrumentResource, INST_TYPE
 
 ###################################################################################
