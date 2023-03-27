@@ -105,6 +105,7 @@ class InstrumentConnectionService:
             driver = response_dict["general_settings"]["driver_path"]
 
             parent_dir = os.path.dirname(os.getcwd())
+            # TODO: Need to make an agreement to where to store custom driver modules
             sys.path.append(os.path.join(parent_dir, "Instrument", driver_path))
             custom_driver = importlib.import_module(driver)
 
