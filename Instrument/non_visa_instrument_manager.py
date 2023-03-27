@@ -1,50 +1,27 @@
-from picoscope import *
 import requests
-import time
-import matplotlib.pyplot as plt
-import numpy as np
 
-# import sys
-# sys.path.append('/Picoscope_6000')
-# from Picoscope_6000.Picoscope_6000 import Driver
 
-class PicoscopeManager:
-    def __init__(self, name, driver):
+class NonVisaInstrumentManager:
+    def __init__(self, name, driver, logger):
         self._name = name
         self._driver = driver
-        self._ps = self._initialize_picoscope()
+        self._logger = logger
+        self._instrument = self._initialize_instrument()
 
-    '''Communicates with instrument server to get driver for instrument'''
-
-    # def _initialize_driver(self, driver):
-    #     # implementation will likely change
-    #     url = r'http://localhost:5000/driverParser/'
-    #     response = requests.get(url, data={'driverPath': driver})
-    #
-    #     if 300 > response.status_code >= 200:
-    #         self._driver = dict(response.json())
-    #     else:
-    #         response.raise_for_status()
-
-    '''Initializes Picoscope'''
-
-    def _initialize_picoscope(self):
-        # string passed through in VISA form
-        print("Connecting to Picoscope instrument...")
-        ps = ps6000.PS6000(serialNumber=None, connect=True)
-        return ps
-
-    '''destructor - close picoscope'''
+    def _initialize_instrument(self):
+        # initialize instrument
+        self._logger.debug(f"'Initializing {self._name}'...'")
+        instrument = "place_holder"
+        # code for initialize instrument
+        return instrument
 
     def __del__(self):
-        print("closing Picoscope...")
+        self._logger.debug(f"'Closing  {self._name}'...'")
         self._close()
 
-    '''Closes Picoscope. Should be called when done using PicoscopeManager'''
-
     def _close(self):
-        # self._ps.stop()
-        self._ps.close()
+        # code for closing instrument
+        pass
 
     @property
     def name(self):
@@ -160,10 +137,3 @@ class PicoscopeManager:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def _signal_generator(self):
-        pass
-    # will be implemented in custom driver
-
-    def _arbitrary_waveform_generator(self, frequency, waveformAmplitude, waveformOffset):
-        pass
-    # will be implemented in custom driver
