@@ -1,14 +1,36 @@
 #!/usr/bin/env python
-
-from Instrument.picoscope_manager import PicoscopeManager
+from picoscope import *
+from Instrument.non_visa_instrument_manager import NonVisaInstrumentManager
 import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-class Driver(PicoscopeManager):
+
+class Driver(NonVisaInstrumentManager):
     """ This class implements the picoscope"""
-    def __init__(self, name, driver):
-        super().__init__(name, driver)
+
+    def __init__(self, name, driver, logger):
+        self._name = name
+        self._driver = driver
+        self._logger = logger
+        self._ps = self._initialize_picoscope()
+
+    def _initialize_picoscope(self):
+        self._logger.debug(f"'Initializing {self._name}'...'")
+        ps = ps6000.PS6000(serialNumber=None, connect=True)
+        return ps
+
+    def __del__(self):
+        self._logger.debug(f"'Closing  {self._name}'...'")
+        self._close()
+
+    '''Closes Picoscope. Should be called when done using NonVisaInstrumentManager'''
+
+    def _close(self):
+        self._ps.close()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def _signal_generator(self):
         frequency = float(self.get_value('Frequency'))
