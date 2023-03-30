@@ -26,13 +26,12 @@ class INST_INTERFACE(Enum):
 
 class InstrumentServerWindow(QMainWindow):
 
-    def __init__(self, flask_app, logger: logging.Logger):
+    def __init__(self, flask_app, logger: logging.Logger, dev_mode=False):
 
         self.my_logger = logger
         self.get_logger().info('Initializing Instrument Server GUI...')
+        self.dev_mode = dev_mode
 
-        # Convenience flag preventing VISA/DB aspects from being automatically called at startup
-        self.dev_machine = False
         # key: instrument cute name, value: instrument type - VISA or NONE_VISA
         self.instrument_type = {}
 
@@ -73,7 +72,7 @@ class InstrumentServerWindow(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
-        if not self.dev_machine:
+        if not self.dev_mode:
             self.get_known_instruments()
 
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)

@@ -19,10 +19,10 @@ import InstrumentServerGui as gui
 ###################################################################################
 class FlaskInstrumentServer:
 
-    def __init__(self):
+    def __init__(self, dev_mode=False):
         """Initializes Instrument Server Application"""
         self._my_logger = self.setup_logger()
-        self._dev_machine = False
+        self._dev_mode = dev_mode
         self._flask_app = self.create_app()
 
     def run_server(self, host='127.0.0.1', port=5000, threaded=True):
@@ -38,10 +38,6 @@ class FlaskInstrumentServer:
         """Get the application logger"""
         return self._my_logger
 
-    def is_dev_machine(self):
-        """Is this a DEV machine?"""
-        return self._dev_machine
-
     def setup_logger(self):
         """Setup the Logger"""
         my_logger = logging.getLogger()
@@ -55,7 +51,7 @@ class FlaskInstrumentServer:
     def start_instrument_server_gui(self):
         self.get_logger().debug(f'Instrument Server GUI thread ID: {threading.get_native_id()}')
         app = QApplication(sys.argv)
-        main_win = gui.InstrumentServerWindow(self._flask_app, self.get_logger())
+        main_win = gui.InstrumentServerWindow(self._flask_app, self.get_logger(), dev_mode=self._dev_mode)
         main_win.resize(800, 600)
         main_win.show()
         app.exec()
@@ -69,7 +65,7 @@ class FlaskInstrumentServer:
 
         # Delegate Instrument detection to a separate thread
         detect_inst_thread = None
-        if not self._dev_machine:
+        if not self._dev_mode:
             detect_inst_thread = threading.Thread(target=instrument_detection_service.detectInstruments())
             detect_inst_thread.start()
 
@@ -106,7 +102,7 @@ class FlaskInstrumentServer:
             pass
 
         # Register database application
-        if not self._dev_machine:
+        if not self._dev_mode:
             db.setLogger(self._my_logger)
             db.init_db(app)
 
@@ -118,7 +114,7 @@ class FlaskInstrumentServer:
         driverParser.setLogger(self._my_logger)
 
         # Wait for Instrument detection to finish
-        if not self._dev_machine:
+        if not self._dev_mode:
             detect_inst_thread.join()
 
         # Register instrument database related blueprint
