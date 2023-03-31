@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import *
 from flask import (Flask, render_template)
 
 import InstrumentDetection.instrument_detection_service as ids
-import db
+from DB import db
 import serverStatus
 import driverParser
 import instrumentDB

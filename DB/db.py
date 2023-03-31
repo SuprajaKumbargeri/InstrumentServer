@@ -21,7 +21,7 @@ def init_db(app):
         connection = get_db()
         cursor = connection.cursor()
         
-        with current_app.open_resource('schema.sql', mode='r') as f:            
+        with current_app.open_resource('schema.sql', mode='r') as f:
             cursor.execute(f.read())
 
         cursor.close()
