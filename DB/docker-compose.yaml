@@ -6,7 +6,7 @@ services:
     image: postgres:15.2-alpine
     container_name: instrument_server_db
     ports:
-      # Maps port 5432 in container to post 5432 on host. (Default PostgreSQL port)
+      # Maps port 5432 in container to port 5432 on host. (Default PostgreSQL port)
       - '5432:5432'
     restart: always
     volumes:

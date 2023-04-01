@@ -20,7 +20,9 @@ import InstrumentServerGui as gui
 class FlaskInstrumentServer:
 
     def __init__(self, dev_mode=False):
-        """Initializes Instrument Server Application"""
+        """Initializes Instrument Server Application.
+        If dev_mode is True, will not try to load VISA backend.
+        """
         self._my_logger = self.setup_logger()
         self._dev_mode = dev_mode
         self._flask_app = self.create_app()
@@ -102,9 +104,8 @@ class FlaskInstrumentServer:
             pass
 
         # Register database application
-        if not self._dev_mode:
-            db.setLogger(self._my_logger)
-            db.init_db(app)
+        db.setLogger(self._my_logger)
+        db.init_db(app)
 
         # Register Server Status blueprint
         app.register_blueprint(serverStatus.bp)
