@@ -1,0 +1,30 @@
+# Deploys PostgreSQL mapped to port 5432 on HOST
+# Deploy using $docker-compose up -d
+
+services:
+  db:
+    image: postgres:15.2-alpine
+    container_name: instrument_server_db
+    ports:
+      # Maps port 5432 in container to port 5432 on host. (Default PostgreSQL port)
+      - '5432:5432'
+    restart: always
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=instrument_db
+
+  # Adminer is web-based DB management tool (supports PostgreSQL)
+  adminer:
+    image: adminer
+    container_name: adminer_client
+    restart: always
+    ports:
+      - 8080:8080
+
+# Creates a Docker volume "pgdata" which is managed by Docker.
+# Note: data does not persist when that container no longer exists
+volumes:
+  pgdata:

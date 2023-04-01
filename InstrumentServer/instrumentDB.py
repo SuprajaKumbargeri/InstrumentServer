@@ -1,11 +1,11 @@
 import logging
-from flask import request, current_app, g
+from flask import request
 from psycopg2 import errors
 import requests
 from flask import Blueprint, jsonify
-from werkzeug.exceptions import (abort, BadRequestKeyError)
-import db, instrumentDBService as ids
-
+from werkzeug.exceptions import (BadRequestKeyError)
+import instrumentDBService as ids
+from DB import db
 
 bp = Blueprint("instrumentDB", __name__,  url_prefix='/instrumentDB')
 UniqueViolation = errors.lookup('23505')
