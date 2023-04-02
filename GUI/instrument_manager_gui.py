@@ -1,8 +1,9 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QTreeWidget, QTreeWidgetItem, QPushButton, QFrame)
-from Instrument.instrument_manager import InstrumentManager
-from GUI.quantity_frames import *
 import logging
 
+from Instrument.instrument_manager import InstrumentManager
+from GUI.quantity_frames import *
+from GUI.settings_frames import *
 
 class InstrumentManagerGUI(QWidget):
     def __init__(self, instrument_manager: InstrumentManager, logger: logging.Logger):
@@ -25,6 +26,8 @@ class InstrumentManagerGUI(QWidget):
         header_widget.setLayout(header_layout)
 
         self.scroll_layout = QVBoxLayout()
+
+        self.section_frames['VISA Settings'] = VISASettingsGroupBox(self._im.driver['visa'])
 
         # add all quantities to layouts dependent on section and group name
         self._build_quanitity_sections()
@@ -125,7 +128,6 @@ class InstrumentManagerGUI(QWidget):
         self.section_tree.itemSelectionChanged.connect(self._handle_section_change)
         self.section_tree.setCurrentItem(self.section_tree.topLevelItem(0))
 
-
     def _set_all_default_value(self):
         """Sets default value to all visible quantities"""
         for quantity_frame in self.quantity_frames:
@@ -134,6 +136,11 @@ class InstrumentManagerGUI(QWidget):
 
     def _handle_section_change(self):
         selected_section_name = self.section_tree.currentItem().text(0)
+
+        if selected_section_name in ('VISA Settings'):
+            self.default_value_btn.setHidden(True)
+        else:
+            self.default_value_btn.setHidden(False)
 
         for section_name, section in self.section_frames.items():
             if section_name == selected_section_name:
