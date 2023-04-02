@@ -11,9 +11,7 @@ TERM_CHAR = Enum('TERM_CHAR',
                   'LF': '\n',
                   'CR+LF': '\r\n'})
 
-###################################################################################
-# InstrumentManager
-###################################################################################
+
 class InstrumentManager:
     def __init__(self, name, connection, logger):
         self._name = name

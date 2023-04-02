@@ -44,9 +44,9 @@ class InstrumentConnectionService:
         if HTTPStatus.OK < response.status_code >= HTTPStatus.MULTIPLE_CHOICES:
             response.raise_for_status()
 
-        response_dict = dict(response.json())
-        interface = response_dict['instrument_interface']['interface']
-        address = response_dict['instrument_interface']['address']
+        driver_dict = dict(response.json())
+        interface = driver_dict['instrument_interface']['interface']
+        address = driver_dict['instrument_interface']['address']
 
         self.get_logger().debug(f'Cute_name: {cute_name} uses interface: {interface} and address: {address}')
 
@@ -57,12 +57,14 @@ class InstrumentConnectionService:
 
         if interface == INST_INTERFACE.TCPIP.name:
             connection_str = self.make_conn_str_tcip_instrument(address)
+
         elif interface == INST_INTERFACE.USB.name and INST_INTERFACE.ASRL.name in address:
             # Serial instruments do not have "USB" in the connection string
             for resource in resources:
                 if address in resource:
                     connection_str = resource
                     break
+
         else:
             # Get the connection string (used to get PyVISA resource)
             for resource in resources:
