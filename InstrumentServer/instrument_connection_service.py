@@ -76,7 +76,7 @@ class InstrumentConnectionService:
         # Connect to instrument
         self.get_logger().debug('Using connection string: {connection_str} to connect to {cute_name}')
         try:
-            im = InstrumentManager(cute_name, connection_str, self._my_logger)
+            im = InstrumentManager(cute_name, connection_str, driver_dict, self._my_logger)
             self._connected_instruments[cute_name] = im
             self.get_logger().info(f"VISA connection established to: {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
@@ -102,12 +102,11 @@ class InstrumentConnectionService:
             # importing custom driver module from the driver_path
             # Assumption: driver_path and driver are the same
             driver_path = response_dict["general_settings"]["driver_path"]
-            driver = response_dict["general_settings"]["driver_path"]
+            driver_path = "/".join(driver_path.split("/")[:-1])
+            module_name = driver_path.split("/")[-1].replace(".py", "")
 
-            parent_dir = os.path.dirname(os.getcwd())
-            # TODO: Need to make an agreement to where to store custom driver modules
-            sys.path.append(os.path.join(parent_dir, "Instrument", driver_path))
-            custom_driver = importlib.import_module(driver)
+            sys.path.append(driver_path)
+            custom_driver = importlib.import_module(module_name)
 
             im = getattr(custom_driver, "Driver")(name=cute_name, driver=response_dict, logger=self._my_logger)
             self._connected_instruments[cute_name] = im

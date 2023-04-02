@@ -13,9 +13,9 @@ class Driver(NonVisaInstrumentManager):
         self._name = name
         self._driver = driver
         self._logger = logger
-        self._ps = self._initialize_picoscope()
+        self._ps = self._initialize_instrument()
 
-    def _initialize_picoscope(self):
+    def _initialize_instrument(self):
         self._logger.debug(f"'Initializing {self._name}'...'")
         ps = ps6000.PS6000(serialNumber=None, connect=True)
         return ps
