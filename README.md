@@ -13,12 +13,17 @@ Download and install the NI-VISA library: [NI-VISA](https://www.ni.com/en-us/sup
 Starts on localhost (`127.0.0.1`) and port: `5000`. Threading enabled by default. <br> <br>
 Just run: `__init__.py`
 
-### Previous deploy method:
-`flask --app InstrumentServer run --with-threads` <br>
-`flask --app InstrumentServer --debug run`
-
 # Instrument Database
-PostgresSQL database with parsed details from instrument driver
+PostgresSQL database with parsed details from instrument driver.
+
+## Containerized instance of Postgres Alpine:
+
+Requires Docker to be installed on HOST system.
+
+From DB directory, run:
+```commandline
+docker-compose up -d
+```
 
 ### Connection details:
 - Host: localhost  

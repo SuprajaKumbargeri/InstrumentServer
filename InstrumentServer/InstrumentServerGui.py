@@ -4,7 +4,7 @@ import logging
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
-import db
+from DB import db
 import instrument_connection_service
 from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
@@ -26,13 +26,12 @@ class INST_INTERFACE(Enum):
 
 class InstrumentServerWindow(QMainWindow):
 
-    def __init__(self, flask_app, logger: logging.Logger):
+    def __init__(self, flask_app, logger: logging.Logger, dev_mode=False):
 
         self.my_logger = logger
         self.get_logger().info('Initializing Instrument Server GUI...')
+        self.dev_mode = dev_mode
 
-        # Convenience flag preventing VISA/DB aspects from being automatically called at startup
-        self.dev_machine = False
         # key: instrument cute name, value: instrument type - VISA or NONE_VISA
         self.instrument_type = {}
 
@@ -73,8 +72,7 @@ class InstrumentServerWindow(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
-        if not self.dev_machine:
-            self.get_known_instruments()
+        self.get_known_instruments()
 
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
@@ -459,6 +457,7 @@ class AddInstrumentWindow(QDialog):
 
         self.file_group_box = QGroupBox("Instrument Driver")
         self.file_group_box.setLayout(file_input_vbox)
+        self.file_group_box.setFixedHeight(90)
 
         # Box 2 for communication input
         self.name_line = QLineEdit()
@@ -504,6 +503,7 @@ class AddInstrumentWindow(QDialog):
 
         self.setLayout(self.layout)
         self.setFixedWidth(400)
+        self.setFixedHeight(320)
 
     def getFilePath(self):
         file_filter = 'Configuration File (*.ini);; Python File (*.py)'
