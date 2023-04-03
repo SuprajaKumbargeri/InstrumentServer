@@ -18,14 +18,14 @@ class INST_INTERFACE(Enum):
     COM = 'COM'
 
 
+class AlreadyConnectedError(Exception):
+    pass
+
+
 class InstrumentConnectionService:
     def __init__(self, logger: logging.Logger) -> None:
         self._connected_instruments = {}
-        self._my_logger = logger
-
-    def get_logger(self):
-        """Get the application logger"""
-        return self._my_logger
+        self.my_logger = logger
 
     def is_connected(self, cute_name: str) -> bool:
         return cute_name in self._connected_instruments.keys()
@@ -34,7 +34,7 @@ class InstrumentConnectionService:
         """Creates and stores connection to given VISA instrument"""
 
         if self.is_connected(cute_name):
-            raise ValueError(f'{cute_name} is already connected.')
+            raise AlreadyConnectedError(f'{cute_name} is already connected.')
 
         # Use cute_name to determine the interface (hit endpoint for that)
         url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
@@ -48,7 +48,7 @@ class InstrumentConnectionService:
         interface = driver_dict['instrument_interface']['interface']
         address = driver_dict['instrument_interface']['address']
 
-        self.get_logger().debug(f'Cute_name: {cute_name} uses interface: {interface} and address: {address}')
+        self.my_logger.debug(f'Cute_name: {cute_name} uses interface: {interface} and address: {address}')
 
         # Get list of resources to compare to
         rm = pyvisa.ResourceManager()
@@ -76,27 +76,27 @@ class InstrumentConnectionService:
             raise ConnectionError(f"Could not connect to {cute_name}. Available resources are: {resources}")
 
         # Connect to instrument
-        self.get_logger().debug('Using connection string: {connection_str} to connect to {cute_name}')
+        self.my_logger.debug('Using connection string: {connection_str} to connect to {cute_name}')
 
         driver_path = driver_dict["general_settings"]["driver_path"]
         if driver_path:
             # importing custom driver module from the driver_path
             # Assumption: driver_path and driver are the same
             driver_path = driver_dict["general_settings"]["driver_path"]
-            driver_path = os.sep.join(driver_path.split(os.sep)[:-1])
+            module_location = os.sep.join(driver_path.split(os.sep)[:-1])
             module_name = driver_path.split(os.sep)[-1].replace(".py", "")
 
-            sys.path.append(driver_path)
+            sys.path.append(module_location)
             custom_driver = importlib.import_module(module_name)
 
-            ManagerClass = getattr(custom_driver, "Driver")
+            ManagerClass = getattr(custom_driver, module_name)
         else:
             ManagerClass = InstrumentManager
 
         try:
-            im = ManagerClass(cute_name, connection_str, driver_dict, self._my_logger)
+            im = ManagerClass(cute_name, connection_str, driver_dict, self.my_logger)
             self._connected_instruments[cute_name] = im
-            self.get_logger().info(f"VISA connection established to: {cute_name}.")
+            self.my_logger.info(f"VISA connection established to: {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
         except ValueError as e:
             raise ConnectionError(e)
@@ -119,15 +119,15 @@ class InstrumentConnectionService:
             # importing custom driver module from the driver_path
             driver_path = response_dict["general_settings"]["driver_path"]
             module_name = driver_path.split(os.sep)[-1].replace(".py", "")
-            driver_path = os.sep.join(driver_path.split(os.sep)[:-1])
+            module_location = os.sep.join(driver_path.split(os.sep)[:-1])
             
-            sys.path.append(driver_path)
+            sys.path.append(module_location)
             custom_driver = importlib.import_module(module_name)
 
-            im = getattr(custom_driver, "Driver")(name=cute_name, driver=response_dict, logger=self._my_logger)
+            im = getattr(custom_driver, module_name)(name=cute_name, driver=response_dict, logger=self.my_logger)
             self._connected_instruments[cute_name] = im
 
-            self.get_logger().info(f"Connected to {cute_name}.")
+            self.my_logger.info(f"Connected to {cute_name}.")
 
         # InstrumentManager may throw value error, this service should throw a Connection error
         except ValueError as e:
@@ -138,7 +138,7 @@ class InstrumentConnectionService:
             return
 
         del self._connected_instruments[cute_name]
-        self.get_logger().debug(f"Disconnected {cute_name}.")
+        self.my_logger.debug(f"Disconnected {cute_name}.")
 
     def disconnect_all_instruments(self):
         instr_names = list(self._connected_instruments.keys())
@@ -186,14 +186,14 @@ class InstrumentConnectionService:
                 self.disconnect_instrument(cute_name)
 
         except KeyError:
-            self.get_logger().info(f'Instrument {cute_name} is not currently connected.')
+            self.my_logger.info(f'Instrument {cute_name} is not currently connected.')
         except Exception as e:
-            self.get_logger().info(f'Instrument {cute_name} is not currently connected.')
+            self.my_logger.info(f'Instrument {cute_name} is not currently connected.')
 
         url = r'http://127.0.0.1:5000/instrumentDB/removeInstrument'
         response = requests.get(url, params={'cute_name': cute_name})
         if HTTPStatus.MULTIPLE_CHOICES > response.status_code <= HTTPStatus.OK:
             return "Instrument removed."
         else:
-            self.get_logger().fatal(response.raise_for_status())
+            self.my_logger.fatal(response.raise_for_status())
         return "Failed to remove the instrument."

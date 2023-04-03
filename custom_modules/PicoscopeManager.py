@@ -6,7 +6,7 @@ import time
 import matplotlib.pyplot as plt
 
 
-class Driver(InstrumentManager):
+class PicoscopeManager(InstrumentManager):
     """ This class implements the picoscope"""
 
     def __init__(self, name, driver, logger):

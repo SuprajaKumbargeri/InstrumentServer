@@ -3,13 +3,22 @@
 from Instrument.instrument_manager import InstrumentManager
 import numpy as np
 
-class Driver(InstrumentManager):
+
+class Agilent33220AManager(InstrumentManager):
     """ This class implements the Agilen 33250 AWG"""
     
     def write(self, msg):
         if msg:
-            self._logger.Debug("Calling from the driver class.")
+            self._logger.critical("Calling from the driver class.")
             self._instrument.write(msg)
+
+    def set_value(self, quantity, value):
+        # keep track of if waveform is updated, to avoid sending it many times
+        if quantity in ('Arb. Waveform',):
+            pass
+        else:
+            # for all other cases, call VISA driver
+            super().set_value(quantity, value)
 
     # def performOpen(self, options={}):
     #     """Perform the operation of opening the instrument connection"""
@@ -20,7 +29,6 @@ class Driver(InstrumentManager):
     #     super.performOpen(self, options)
     #     # clear value of waveform
     #     self.setValue('Arb. Waveform', [])
-
 
     # def set_value(self, quant, value, sweepRate=0.0, options={}):
     #     """Perform the Set Value instrument operation. This function should
@@ -58,12 +66,12 @@ class Driver(InstrumentManager):
     #     self.write(':FUNC:USER VOLATILE')
 
         
-    # def scaleWaveformToI16(self, vData, dVpp):
-    #     """Scales the waveform and returns data in a string of I16"""
-    #     # clip waveform and store in-place
-    #     np.clip(vData, -dVpp/2., dVpp/2., vData)
-    #     vI16 = np.array(2047 * vData / (dVpp/2.), dtype=np.int16)
-    #     return vI16
+    def scaleWaveformToI16(self, vData, dVpp):
+        """Scales the waveform and returns data in a string of I16"""
+        # clip waveform and store in-place
+        np.clip(vData, -dVpp/2., dVpp/2., vData)
+        vI16 = np.array(2047 * vData / (dVpp/2.), dtype=np.int16)
+        return vI16
 
 
 if __name__ == '__main__':
