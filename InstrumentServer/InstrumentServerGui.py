@@ -280,9 +280,6 @@ class InstrumentServerWindow(QMainWindow):
                 current_item = self.instrument_tree.currentItem()
                 current_item.setIcon(0, self.green_icon)
 
-        except ValueError as e:
-            QMessageBox.information(self, 'Instrument is already connected.', 'Instrument is already connected.')
-
         except Exception as e:
             self.get_logger().fatal(f'There was a problem connecting to instrument: {e}')
             QMessageBox.critical(self, 'ERROR', f'Could not connect to instrument: {e}')

@@ -33,10 +33,6 @@ class NonVisaInstrumentManager:
 
     '''Set's default value for given quantity'''
 
-    def _set_default_value(self, quantity):
-        if self.quantities[quantity]['def_value']:
-            self[quantity] = self.quantities[quantity]['def_value']
-
     def get_value(self, quantity):
         url = r'http://localhost:5000/instrumentDB/getLatestValue'
         response = requests.get(url, params={'cute_name': self._name, 'label': quantity})

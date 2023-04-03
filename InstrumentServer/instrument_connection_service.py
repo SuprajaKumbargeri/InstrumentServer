@@ -77,8 +77,24 @@ class InstrumentConnectionService:
 
         # Connect to instrument
         self.get_logger().debug('Using connection string: {connection_str} to connect to {cute_name}')
+
+        driver_path = driver_dict["general_settings"]["driver_path"]
+        if driver_path:
+            # importing custom driver module from the driver_path
+            # Assumption: driver_path and driver are the same
+            driver_path = driver_dict["general_settings"]["driver_path"]
+            driver_path = os.sep.join(driver_path.split(os.sep)[:-1])
+            module_name = driver_path.split(os.sep)[-1].replace(".py", "")
+
+            sys.path.append(driver_path)
+            custom_driver = importlib.import_module(module_name)
+
+            ManagerClass = getattr(custom_driver, "Driver")
+        else:
+            ManagerClass = InstrumentManager
+
         try:
-            im = InstrumentManager(cute_name, connection_str, driver_dict, self._my_logger)
+            im = ManagerClass(cute_name, connection_str, driver_dict, self._my_logger)
             self._connected_instruments[cute_name] = im
             self.get_logger().info(f"VISA connection established to: {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
@@ -87,7 +103,6 @@ class InstrumentConnectionService:
 
     def connect_to_none_visa_instrument(self, cute_name: str):
         """Creates and stores connection to given NONE_VISA instrument"""
-
         if cute_name in self._connected_instruments.keys():
             raise ValueError(f'{cute_name} is already connected.')
 
@@ -102,11 +117,10 @@ class InstrumentConnectionService:
         response_dict = dict(response.json())
         try:
             # importing custom driver module from the driver_path
-            # Assumption: driver_path and driver are the same
             driver_path = response_dict["general_settings"]["driver_path"]
-            driver_path = "/".join(driver_path.split("/")[:-1])
-            module_name = driver_path.split("/")[-1].replace(".py", "")
-
+            module_name = driver_path.split(os.sep)[-1].replace(".py", "")
+            driver_path = os.sep.join(driver_path.split(os.sep)[:-1])
+            
             sys.path.append(driver_path)
             custom_driver = importlib.import_module(module_name)
 

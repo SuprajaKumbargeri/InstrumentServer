@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from picoscope import *
-from Instrument.non_visa_instrument_manager import InstrumentManager
+from Instrument.instrument_manager import InstrumentManager
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -20,13 +20,34 @@ class Driver(InstrumentManager):
         ps = ps6000.PS6000(serialNumber=None, connect=True)
         return ps
 
-    def __del__(self):
-        self._logger.debug(f"'Closing  {self._name}'...'")
-        self._close()
+    def get_value(self, quantity):
+        url = r'http://localhost:5000/instrumentDB/getLatestValue'
+        response = requests.get(url, params={'cute_name': self._name, 'label': quantity})
+        if 300 > response.status_code <= 200:
+            # success
+            pass
+        else:
+            response.raise_for_status()
+
+        value = response.json()
+        if value['latest_value'] is None:
+            return self.quantities[quantity]['def_value']
+        else:
+            return value['latest_value']
+
+    def set_value(self, quantity, value):
+        self._check_limits(quantity, value)
+        url = r'http://localhost:5000/instrumentDB/setLatestValue'
+        response = requests.put(url, params={'cute_name': self._name, 'label': quantity, 'latest_value': value})
+        if 300 > response.status_code <= 200:
+            # success
+            pass
+        else:
+            response.raise_for_status()
 
     '''Closes Picoscope. Should be called when done using NonVisaInstrumentManager'''
 
-    def _close(self):
+    def close(self):
         self._ps.close()
 
     def __exit__(self, exc_type, exc_val, exc_tb):

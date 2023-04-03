@@ -13,11 +13,11 @@ TERM_CHAR = Enum('TERM_CHAR',
 
 
 class InstrumentManager:
-    def __init__(self, name, connection, logger):
+    def __init__(self, name, connection, driver, logger):
         self._name = name
         self._logger = logger
         self._instrument = None
-        self._driver = None
+        self._driver = driver
         self._timeout = 1000.0
         self._term_chars = None
         self._send_end = None
@@ -27,8 +27,6 @@ class InstrumentManager:
         self._parity = None
         self._query_errors = None
 
-        # Get the driver dictionary
-        self._get_driver()
         self._get_visa_settings()
 
         if self._is_serial_instrument():
@@ -46,44 +44,27 @@ class InstrumentManager:
         self._check_model()
         self._startup()
 
-    def _get_driver(self):
-        """Communicates with instrument server to get driver for instrument"""
-        # implementation will likely change
-        url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
-        response = requests.get(url, params={'cute_name': self._name})
-
-        if 300 > response.status_code >= 200:
-            self._driver = dict(response.json())
-        else:
-            response.raise_for_status()
-
     def _initialize_instrument(self, connection):
         """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
-        # string passed through in VISA form
-        if isinstance(connection, str):
-            self._rm = ResourceManager()
+        self._rm = ResourceManager()
 
-            if self._is_serial_instrument():
-                # The actual terminating chars as str
-                read_term = str(TERM_CHAR[self._term_chars].value)
+        if self._is_serial_instrument():
+            # The actual terminating chars as str
+            read_term = str(TERM_CHAR[self._term_chars].value)
 
-                self._logger.debug('Using the following parameters to connect to serial VISA instrument: resource_name={}, '
-                      'read_termination={}, baud_rate={}'.format(connection,
-                                                                 TERM_CHAR[self._term_chars],
-                                                                 self._baud_rate))
+            self._logger.debug('Using the following parameters to connect to serial VISA instrument: resource_name={}, '
+                    'read_termination={}, baud_rate={}'.format(connection,
+                                                                TERM_CHAR[self._term_chars],
+                                                                self._baud_rate))
 
-                # To connect a serial instrument, baud_rate and read_termination is required
-                self._instrument = self._rm.open_resource(resource_name=connection,
-                                                          read_termination=read_term,
-                                                          baud_rate=self._baud_rate,
-                                                          open_timeout=10000)
-            else:
-                self._logger.debug('Connecting to VISA instrument: {} using: {}'.format(self.name, connection))
-                self._instrument = self._rm.open_resource(connection)
-
-        # TODO: allow for user defined instrument class
+            # To connect a serial instrument, baud_rate and read_termination is required
+            self._instrument = self._rm.open_resource(resource_name=connection,
+                                                        read_termination=read_term,
+                                                        baud_rate=self._baud_rate,
+                                                        open_timeout=10000)
         else:
-            raise NotImplementedError("At this time, the connection string must be provided")
+            self._logger.debug('Connecting to VISA instrument: {} using: {}'.format(self.name, connection))
+            self._instrument = self._rm.open_resource(connection)
 
     def _check_model(self):
         """Queries instrument for model ID and compares to models listed in driver
@@ -166,7 +147,6 @@ class InstrumentManager:
 
     def write(self, msg):
         if msg:
-            self._logger.debug(f"Writing '{msg}' to '{self.name}.'")
             self._instrument.write(msg)
 
     def read(self):
@@ -309,7 +289,7 @@ class InstrumentManager:
             cmd += f' {value}'
 
         self._logger.debug(f"'{quantity}' is set to '{value}.'")
-        self._instrument.write(cmd)
+        self.write(cmd)
         self._set_latest_value(quantity, value)
 
     def _set_latest_value(self, quantity, value):
