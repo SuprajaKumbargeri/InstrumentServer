@@ -3,18 +3,21 @@ from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from GUI.experiment_runner_gui import ExperimentRunner
-
+from GUI.quantity_frames import *
+from GUI.channels_table import *
+from Instrument.instrument_manager import InstrumentManager
 
 ###################################################################################
 # ExperimentWindowGui
 ###################################################################################
 class ExperimentWindowGui(QMainWindow):
-    def __init__(self, parent_gui, logger: logging.Logger):
+    def __init__(self, parent_gui, instrument_manager: InstrumentManager, logger: logging.Logger):
         super().__init__()
         self.parent_gui = parent_gui
         self.my_logger = logger
         self.setWindowTitle('Experiment')
         self.resize(1000, 800)
+        self._ics = instrument_manager
 
         lab_experiment_icon = QIcon("../Icons/labExperiment.png")
         self.setWindowIcon(lab_experiment_icon)
@@ -47,7 +50,14 @@ class ExperimentWindowGui(QMainWindow):
     def get_logger(self):
         """Get the application logger"""
         return self.my_logger
-
+    
+    def get_instrument_manager(self, cute_name):
+        """Get the instrument manager object from instrument connection service"""
+        return self._ics.get_instrument_manager(cute_name)
+    
+    ####################################################################
+    # Channel table related implementation
+    ####################################################################
     def construct_channels_section(self):
         """
         GUI Section on the left
@@ -59,58 +69,36 @@ class ExperimentWindowGui(QMainWindow):
         channels_section_main_layout = QVBoxLayout()
 
         # This is that table full of instruments and their values
-        channels_table = QTreeWidget()
-        channels_table.setHeaderLabels(['Instrument', 'Name/Address', 'Instr. value', 'Phys. value', 'Server'])
+        self.channels_table = ChannelsTreeWidget(self.my_logger)
 
-        # Allow only one selection at a time -> SingleSelection
-        channels_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-
-        header = channels_table.header()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
-
-        channels_table.itemSelectionChanged.connect(self.channels_table_selection_changed)
-
-        """
-        Column Order:
-        [Instrument, Name/Address, Instr. value, Phys. value, Server]
-        """
-        # TODO: Remove later (example data)
-        root_example = QTreeWidgetItem(channels_table, ['Rhode&Schwarz SG100', 'gen', '','', 'localhost'])
+        # Placeholder - to be removed
+        root_example = QTreeWidgetItem(self.channels_table, ['Rhode&Schwarz SG100', 'gen', '','', 'localhost'])
         QTreeWidgetItem(root_example, ['Frequency', '', '5 Ghz'])
         QTreeWidgetItem(root_example, ['Power', '', '-20 dBm'])
         QTreeWidgetItem(root_example, ['Phase', '', '0 rad'])
         QTreeWidgetItem(root_example, ['Mode', '', 'Normal'])
         QTreeWidgetItem(root_example, ['Output', '', 'Off'])
         root_example.setExpanded(True)
-        channels_section_main_layout.addWidget(channels_table)
+        channels_section_main_layout.addWidget(self.channels_table)
 
-        #############################################
         # The section on the bottom that has buttons
-        #############################################
         button_section_layout = QHBoxLayout()
 
         show_cfg_btn = QPushButton("Show cfg...")
         button_section_layout.addWidget(show_cfg_btn)
         button_section_layout.setAlignment(show_cfg_btn, Qt.AlignmentFlag.AlignLeft)
 
-        set_value_btn = QPushButton("Set value...")
-        button_section_layout.addWidget(set_value_btn)
-
-        get_value_btn = QPushButton("Get value")
-        button_section_layout.addWidget(get_value_btn)
-
         add_btn = QPushButton("Add...")
         button_section_layout.addWidget(add_btn)
+        add_btn.clicked.connect(self.add_channel)
 
         edit_btn = QPushButton("Edit...")
         button_section_layout.addWidget(edit_btn)
+        edit_btn.clicked.connect(self.edit_channel_quantity)
 
         remove_btn = QPushButton("Remove")
         button_section_layout.addWidget(remove_btn)
+        remove_btn.clicked.connect(self.remove_channel)
         button_section_layout.setAlignment(remove_btn, Qt.AlignmentFlag.AlignRight)
 
         # Add button_section to the main layout
@@ -118,6 +106,38 @@ class ExperimentWindowGui(QMainWindow):
 
         self.channels_group.setLayout(channels_section_main_layout)
         self.main_layout.addWidget(self.channels_group)
+
+    def add_channel(self):
+        """
+        Implements the add instrument functionality to the Channel table
+        """
+        dialog = AddChannelDialog(self._ics._connected_instruments)
+        if dialog.exec():
+            # Get the selected item from the dialog box
+            selected_item = dialog.get_selected_item()
+            if selected_item is not None:
+                instrument_manager = self.get_instrument_manager(selected_item)
+                self.channels_table.add_channel_item(instrument_manager)
+
+    def remove_channel(self):
+        """
+        Removes an added instrument from channel table
+        """
+        self.channels_table.remove_channel()
+        # TODO: handle deletion from other tables
+        return
+    
+    def edit_channel_quantity(self):
+        """
+        Modifies an existing instrument's quantity
+        """
+        if self.channels_table.currentItem() is not None:
+            self.channels_table.show_quantity_frame_gui(self.channels_table.currentItem())
+        return
+    
+    ####################################################################
+    # Step sequence table related implementation
+    ####################################################################
 
     def construct_step_sequence_section(self):
         """
@@ -141,37 +161,7 @@ class ExperimentWindowGui(QMainWindow):
         step_sequence_main_layout = QVBoxLayout()
 
         # This is the table for looping values in the experiment
-        step_sequence_table = QTreeWidget()
-
-        # Disabling arrows in the Tree Widget
-        step_sequence_table.setStyleSheet( "QTreeWidget::branch{border-image: url(none.png);}")
-
-        # Tree Widget Items remain expanded, disabling the option to toggle expansion
-        step_sequence_table.setItemsExpandable(False)
-
-        # Allow only one selection at a time -> SingleSelection
-        step_sequence_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-
-        step_sequence_table.setHeaderLabels(['Channel', '# pts.', 'Step list', 'Output range'])
-        header = step_sequence_table.header()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)        
-       
-        step_sequence_table.itemSelectionChanged.connect(self.step_sequence_table_selection_changed)
-
-        """
-        Column Order:
-        ['Channel', '# pts.', 'Step list', 'Output range']
-        """
-        # TODO: Remove later (example data)
-        first_loop_sequence = QTreeWidgetItem(step_sequence_table, ['gen - Frequency', '51', '5 GHz - 10 GHz', '5 GHz - 10 GHz'])
-        second_loop_sequence = QTreeWidgetItem(first_loop_sequence, ['gen - Power', '51', '10 dBm - 20 dBm', '10 dBm - 20 dBm'])
-        third_loop_sequence = QTreeWidgetItem(second_loop_sequence, ['gen - Phase', '180', '0 rad - 3.14 rad', '0 rad - 3.14 rad'])
-        
-        different_loop_sequence = QTreeWidgetItem(step_sequence_table, ['another_channel - Voltage', '100', '-5 V - 5 V', '-5 V - 5 V'])
-        different_inner_loop_sequence = QTreeWidgetItem(different_loop_sequence, ['another_channel - Frequency', '10', '1 GHz - 10 GHz', '1 GHz - 10 GHz'])
+        step_sequence_table = StepSequenceTreeWidget()
 
         # Expand all the inner items
         step_sequence_table.expandAll()
@@ -194,6 +184,10 @@ class ExperimentWindowGui(QMainWindow):
 
         # Stretch factor for 'step sequence' is set to 3
         self.right_side_section.addWidget(self.step_sequence_group, 3)
+
+    ####################################################################
+    # Implementation related to logging, comments and timing
+    ####################################################################
 
     def construct_logging_section(self):
         """
@@ -304,6 +298,16 @@ class ExperimentWindowGui(QMainWindow):
         
         self.main_layout.addLayout(self.right_side_section)
 
+    def log_channels_table_selection_changed(self):
+        pass
+
+    def comment_text_changed(self):
+        pass
+
+    ####################################################################
+    # Experiment Runner related implementation
+    ####################################################################
+
     def experiment_runner_clicked(self):
         self.get_logger().debug('Experiment Runner clicked')
         self.show_experiment_runner_window()
@@ -334,15 +338,65 @@ class ExperimentWindowGui(QMainWindow):
         """
         print('Exiting ExperimentWindowGui...')
         self.close()
+   
+####################################################################
+# To be moved to a different module
+####################################################################       
+class StepSequenceTreeWidget(QTreeWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+         # Disabling arrows in the Tree Widget
+        self.setStyleSheet( "QTreeWidget::branch{border-image: url(none.png);}")
 
-    def channels_table_selection_changed(self):
-        pass
+        # Tree Widget Items remain expanded, disabling the option to toggle expansion
+        self.setItemsExpandable(False)
+
+        # Allow only one selection at a time -> SingleSelection
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
+        self.setHeaderLabels(['Channel', '# pts.', 'Step list', 'Output range'])
+        header = self.header()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)        
+       
+        self.itemSelectionChanged.connect(self.step_sequence_table_selection_changed)
+        
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
+            event.accept()
+        else:
+            event.ignore()
+    
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+        else:
+            event.ignore()
+          
+    def dropEvent(self, event):
+        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
+            data = event.mimeData()
+            source_item = QStandardItemModel()
+            source_item.dropMimeData(data, Qt.DropAction.MoveAction, 0,0, QModelIndex())
+            # to change
+            child = []
+            parent = []
+            # Not fully implemented
+            for item in source_item.takeRow(0):
+                if item.text():
+                    child.append(item.text())
+            # Placeholder information
+            QTreeWidgetItem(self, ["gen" + child[0], '51', '5 GHz - 10 GHz', '5 GHz - 10 GHz'])
+            # The source and target widgets can be found with source() and target()
+
+        else:
+            event.ignore()
 
     def step_sequence_table_selection_changed(self):
-        pass
-
-    def log_channels_table_selection_changed(self):
-        pass
-
-    def comment_text_changed(self):
         pass
