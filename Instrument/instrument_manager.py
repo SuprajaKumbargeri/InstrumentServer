@@ -59,6 +59,10 @@ class InstrumentManager:
         else:
             response.raise_for_status()
 
+        # default visibility is true
+        for quantity in self._driver['quantities']:
+            self._driver['quantities'][quantity]["is_visible"] = True
+
     def _initialize_instrument(self, connection):
         """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
         # string passed through in VISA form
@@ -152,9 +156,11 @@ class InstrumentManager:
             self.write(self._driver['visa']['final'])
 
         # close instrument
-        self._instrument.close()
+        if self._instrument:
+            self._instrument.close()
         # close resource manager
-        self._rm.close()
+        if self._rm:
+            self._rm.close()
 
     def ask(self, msg: str) -> str:
         """Queries instrument
@@ -203,7 +209,10 @@ class InstrumentManager:
         quants = dict(self._driver['quantities'])
 
         for quantity in quants.keys():
-            quants[quantity]['value'] = self.get_value(quantity)
+            try:
+                quants[quantity]['value'] = self.get_value(quantity)
+            except:
+                quants[quantity]['value'] = None
 
         return quants
 
@@ -258,8 +267,16 @@ class InstrumentManager:
             quantity_info['combos'] = list()
 
         quantity_info['name'] = quantity
-        quantity_info['latest_value'] = self.get_latest_value(quantity)
+
+        last_value = self.get_latest_value(quantity)
+        quantity_info['latest_value'] = last_value
+        self._update_visibility(quantity, last_value)
+
         return quantity_info
+
+    def get_visible_quantities(self):
+        """Returns a dictionary of all visible quantities"""
+        return {quantity for quantity in self.quantity_values if quantity['is_visible']}
 
     def get_value(self, quantity):
         """Gets value for given quantity
@@ -272,7 +289,10 @@ class InstrumentManager:
         # Update latest value in DB in case it is incorrect
         self._set_latest_value(quantity, value)
 
-        return self.convert_return_value(quantity, value)
+        value = self.convert_return_value(quantity, value)
+        self._update_visibility(quantity, value)
+
+        return value
 
     def get_latest_value(self, quantity):
         url = r'http://127.0.0.1:5000/instrumentDB/getLatestValue'
@@ -313,6 +333,7 @@ class InstrumentManager:
         self._logger.debug(f"'{quantity}' is set to '{value}.'")
         self._instrument.write(cmd)
         self._set_latest_value(quantity, value)
+        self._update_visibility(quantity, value)
 
     def _set_latest_value(self, quantity, value):
         url = r'http://127.0.0.1:5000/instrumentDB/setLatestValue'
@@ -347,6 +368,27 @@ class InstrumentManager:
 
             if value not in (valid_states or valid_cmds):
                 raise ValueError(f"{value} is not a recognized state of {quantity}'s states. Valid states are {valid_states}.")
+
+    def _update_visibility(self, quantity_changed, new_value):
+        """Updates visibility of all quantities whose state_quant is the quantity_changed
+            Parameters:
+                quantity_changed -- qunatity whose value was just changed
+                new_value -- value that quantity was just changed to
+        """
+        converted_value = self.convert_return_value(quantity_changed, new_value)
+
+        for quantity in self._driver['quantities'].values():
+            if quantity['state_quant'] != quantity_changed:
+                continue
+
+            # allows user to insert either the user form or command form of the state value in .ini
+            if str(converted_value) in quantity['state_values'] or str(new_value) in quantity['state_values']:
+                quantity["is_visible"] = True
+            else:
+                quantity["is_visible"] = False
+
+    def is_visible(self, quantity):
+        return self._driver['quantities'][quantity]['is_visible']
 
     def convert_value(self, quantity, value):
         """Converts given value from user form to command form
