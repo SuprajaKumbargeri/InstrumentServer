@@ -76,7 +76,7 @@ class InstrumentConnectionService:
             self._connected_instruments[cute_name] = im
             self.get_logger().info(f"VISA connection established to: {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
-        except ValueError as e:
+        except Exception as e:
             raise ConnectionError(e)
 
     def connect_to_none_visa_instrument(self, cute_name: str):
