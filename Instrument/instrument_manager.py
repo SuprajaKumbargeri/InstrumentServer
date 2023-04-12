@@ -131,11 +131,6 @@ class InstrumentManager:
         if self._driver['visa']['init']:
             self._instrument.write(self._driver['visa']['init'])
 
-        if self._driver['quantities']:
-            _quantities = list(self._driver['quantities'].keys())
-        else:
-            return
-
     def close(self):
         """Sends final command to instrument if defined in driver and closes instrument and related resources"""
         # send final command
@@ -165,10 +160,7 @@ class InstrumentManager:
             self._instrument.write(msg)
 
     def read(self):
-        msg = self._instrument.read()
-        if self.query_errors:
-            msg += self._instrument.read()
-        return msg
+        return self._instrument.read()
 
     def read_values(self, format):
         return self._instrument.read_values(format)
@@ -256,7 +248,7 @@ class InstrumentManager:
         """
         converted_value = self.quantities[quantity_changed].convert_return_value(new_value)
 
-        for quantity in self._driver['quantities'].values():
+        for quantity in self.quantities.values():
             if quantity.state_quant != quantity_changed:
                 continue
 
@@ -265,9 +257,6 @@ class InstrumentManager:
                 quantity.is_visible = True
             else:
                 quantity.is_visible = False
-
-    def is_visible(self, quantity):
-        return self._driver['quantities'][quantity]['is_visible']
 
     def _is_serial_instrument(self):
         """Does current instrument use serial to communicate?"""

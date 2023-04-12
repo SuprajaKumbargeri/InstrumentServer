@@ -26,7 +26,7 @@ class QuantityManager:
         self.set_cmd = quantity_info['set_cmd']
         self.get_cmd = quantity_info['get_cmd']
         self.latest_value = quantity_info['latest_value']
-        self.is_visibile = True
+        self.is_visible = True
 
         self._write_method = write_method
         self._read_method = read_method
@@ -127,13 +127,13 @@ class QuantityManager:
         # change driver specified boolean values to boolean value
         if self.data_type == 'BOOLEAN':
             value = str(value).strip()
-            if value.upper() == self.str_true.upper():
+            if value in (self.str_true.upper(), str(True)):
                 return True
-            elif value.upper() == self.str_false.upper():
+            elif value in (self.str_false.upper(), str(False)):
                 return False
             else:
-                raise ValueError(
-                    f"{self.name} returned an invalid value for {self.instrument_name}. {value} is not a valid boolean value. Please check instrument driver.")
+                raise ValueError(f"{self.name} returned an invalid value for {self.instrument_name}. "
+                                 f"{value} is not a valid boolean value. Please check instrument driver.")
 
         # Instrument will return instrument-defined value, convert it to driver-defined value
         elif self.data_type == 'COMBO':
