@@ -85,7 +85,7 @@ class QuantityFrame(QtW.QFrame):
     def set_value(self):
         try:
             self.set_value_method(self.quantity_info['name'], self.value)
-            self.on_value_change(self.quantity_info['name'], self.value)
+            self.on_value_change()
         except Exception as e:
             self.logger.error(f"Error setting '{self.name}': {e}")
             QtW.QMessageBox.critical(self, f"Error setting '{self.name}'", str(e))
@@ -150,7 +150,7 @@ class BooleanFrame(QuantityFrame):
     def handle_incoming_value(self, value):
         self.true_radio_button.setChecked(value)
         self.false_radio_button.setChecked(not value)
-        self.on_value_change(self.quantity_info['name'], self.value)
+        self.on_value_change()
 
 
 class ButtonFrame(QuantityFrame):
@@ -189,7 +189,7 @@ class ComboFrame(QuantityFrame):
 
     def handle_incoming_value(self, value):
         self.combo_box.setCurrentText(value)
-        self.on_value_change(self.quantity_info['name'], self.value)
+        self.on_value_change()
 
 
 class ComplexFrame(QuantityFrame):
@@ -233,7 +233,7 @@ class DoubleFrame(QuantityFrame):
 
     def handle_incoming_value(self, value):
         self.spin_box.setValue(float(value))
-        self.on_value_change(self.quantity_info['name'], self.value)
+        self.on_value_change()
 
 
 class PathFrame(QuantityFrame):

@@ -141,21 +141,8 @@ class InstrumentManagerGUI(QWidget):
             else:
                 section.setHidden(True)
 
-    def _handle_quant_value_change(self, state_quant_name, state_value):
+    def _handle_quant_value_change(self):
         """Called by QuantityFrame when the quantity's value is changed.
         Sets visibility of other quantities depending on new value"""
         for quantity_frame in self.quantity_frames:
-            # Not dependent on the quantity that changed
-            if quantity_frame.state_quant != state_quant_name:
-                continue
-
-            if state_value in quantity_frame.state_values:
-                quantity_frame.setHidden(False)
-                self.logger.debug(f"{quantity_frame.name} is now visible.")
-            # the list is populated with quantity.state_values in user form
-            elif state_value in (self._im.convert_return_value(state_quant_name, v) for v in quantity_frame.state_values):
-                quantity_frame.setHidden(False)
-                self.logger.debug(f"{quantity_frame.name} is now visible.")
-            else:
-                quantity_frame.setHidden(True)
-                self.logger.debug(f"{quantity_frame.name} is now hidden.")
+            quantity_frame.setVisible(self._im.is_visible(quantity_frame.name))
