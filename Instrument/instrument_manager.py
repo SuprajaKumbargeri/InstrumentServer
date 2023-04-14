@@ -1,7 +1,8 @@
 from enum import Enum
 from pyvisa import ResourceManager
 import requests
-from copy import deepcopy
+
+from .quantity_manager import QuantityManager
 
 # Maps terminating character from ini file to actual character
 TERM_CHAR = Enum('TERM_CHAR',
@@ -18,6 +19,7 @@ class InstrumentManager:
     def __init__(self, name, connection, logger):
         self._name = name
         self._logger = logger
+        self._rm = None
         self._instrument = None
         self._driver = None
         self._timeout = 1000.0
@@ -27,26 +29,25 @@ class InstrumentManager:
         self._data_bits = None
         self._stop_bits = None
         self._parity = None
-        self._query_errors = None
+        self.query_errors = None
+        self.quantities = dict()
 
         # Get the driver dictionary
         self._get_driver()
-        self._get_visa_settings()
-
-        if self._is_serial_instrument():
-            self._get_serial_values()
-
         self._initialize_instrument(connection)
 
-        # Set these after we have a PyVISA resource (self._instrument)
-        self._initialize_visa_settings()
+        try:
+            self._initialize_visa_settings()
 
-        if "ASLR" in self._driver["instrument_interface"]["interface"]:
-            self._set_serial_values()
+            if self._is_serial_instrument():
+                self._intialize_serial_settings()
 
-            # checks if model is correct, throws error if not
-        self._check_model()
-        self._startup()
+            self._check_model()
+            self._initialize_quantities()
+            self._startup()
+        except:
+            self.close()
+            raise
 
     def _get_driver(self):
         """Communicates with instrument server to get driver for instrument"""
@@ -104,50 +105,31 @@ class InstrumentManager:
 
         raise ValueError(f"No model listed in ['Models and options'] match the instruments model: '{instrID}'")
 
-    def _get_visa_settings(self):
-        self._logger.debug('Getting visa settings...')
-        """Gets instrument settings using data in driver['VISA settings']"""
-        if self._driver is not None:
-            # timeout in ms
-            self._timeout = float(self._driver['visa']['timeout']) * 1000
-            self._term_chars = self._driver['visa']['term_char']
-            self._send_end = self._driver['visa']['send_end_on_write']
-
-            # used to determine if errors should be read after every read
-            self._query_errors = self._driver['visa']['query_instr_errors']
-        else:
-            self._logger.warning('Driver dictionary is not defined!')
-
-    def _get_serial_values(self):
-        """Gets Instrument values for serial instruments"""
-        self._baud_rate = self._driver['visa']['baud_rate']
-        self._data_bits = self._driver['visa']['data_bits']
-        self._stop_bits = self._driver['visa']['stop_bits']
-        self._parity = str(self._driver['visa']['parity']).replace(' ', '_').lower()
-
     def _initialize_visa_settings(self):
-        """Initializes instrument settings using data in driver['VISA settings']"""
-        
-        self._instrument.timeout = self._timeout
-        self._instrument.term_chars = self._term_chars
-        self._instrument.send_end = self._send_end
+        """Initializes instrument settings using data in driver['VISA']"""
+        self._instrument.timeout = float(self._driver['visa']['timeout']) * 1000
+        self._instrument.term_chars = self._driver['visa']['term_char']
+        self._instrument.send_end = self._driver['visa']['send_end_on_write']
+        self.query_errors = self._driver['visa']['query_instr_errors']
 
-    def _set_serial_values(self):
+    def _intialize_serial_settings(self):
         """Sets Instrument values for serial instruments"""
         self._instrument.baud_rate = self._driver['visa']['baud_rate']
         self._instrument.data_bits = self._driver['visa']['data_bits']
         self._instrument.stop_bits = self._driver['visa']['stop_bits']
         self._instrument.parity = self._driver['visa']['parity'].replace(' ', '_').lower()
 
+    def _initialize_quantities(self):
+        str_true = self._driver['visa']['str_true']
+        str_false = self._driver['visa']['str_false']
+
+        for name, info in self._driver['quantities'].items():
+            self.quantities[name] = QuantityManager(info, self.write, self.read, str_true, str_false, self._logger)
+
     def _startup(self):
         """Sends relevant start up commands to instrument"""
         if self._driver['visa']['init']:
             self._instrument.write(self._driver['visa']['init'])
-
-        if self._driver['quantities']:
-            _quantities = list(self._driver['quantities'].keys())
-        else:
-            return
 
     def close(self):
         """Sends final command to instrument if defined in driver and closes instrument and related resources"""
@@ -178,17 +160,14 @@ class InstrumentManager:
             self._instrument.write(msg)
 
     def read(self):
-        msg = self._instrument.read()
-        if self._query_errors:
-            msg += self._instrument.read()
-        return msg
+        return self._instrument.read()
 
     def read_values(self, format):
         return self._instrument.read_values(format)
 
     def ask_for_values(self, msg, format):
         self.write(msg)
-        return self.read_values(format)
+        return self._instrument.read_values(format)
 
     def clear(self):
         self._instrument.clear()
@@ -202,29 +181,6 @@ class InstrumentManager:
     @property
     def name(self):
         return self._name
-
-    @property
-    def quantity_values(self) -> dict:
-        """Gets dictionary of all quantities with their values, settings, and options"""
-        quants = dict(self._driver['quantities'])
-
-        for quantity in quants.keys():
-            try:
-                quants[quantity]['value'] = self.get_value(quantity)
-            except:
-                quants[quantity]['value'] = None
-
-        return quants
-
-    @property
-    def quantities(self) -> dict:
-        """Gets dictionary of all quantities without their values"""
-        return dict(self._driver['quantities'])
-
-    @property
-    def quantity_names(self) -> list[str]:
-        """Gets list of all quantity names"""
-        return list(self._driver['quantities'].keys())
 
     @property
     def timeout(self) -> float:
@@ -249,59 +205,21 @@ class InstrumentManager:
         """
         self._instrument.delay = value
 
-    def get_quantity_info(self, quantity):
-        """Returns only the necessary info for a given quantity
-        Parameters:
-            quantity -- Quantity name as provided in instrument driver
-        Returns:
-            Dictionary containing info on quantity without any commands associated with it
-        """
-        quantity_info = deepcopy(self._driver['quantities'][quantity])
-        del quantity_info['set_cmd']
-        del quantity_info['get_cmd']
-        del quantity_info['combo_cmd']
-
-        if self._driver['quantities'][quantity]['data_type'].upper() == "COMBO":
-            quantity_info['combos'] = self._driver['quantities'][quantity]['combo_cmd'].keys()
-        else:
-            quantity_info['combos'] = list()
-
-        quantity_info['name'] = quantity
-
-        last_value = self.get_latest_value(quantity)
-        quantity_info['latest_value'] = last_value
-        self._update_visibility(quantity, last_value)
-
-        return quantity_info
-
     def get_visible_quantities(self):
-        """Returns a dictionary of all visible quantities"""
-        return {quantity for quantity in self.quantity_values if quantity['is_visible']}
+        """Returns a list of all visible quantities"""
+        return [quantity for quantity in self.quantities if quantity.is_visible]
 
     def get_value(self, quantity):
         """Gets value for given quantity
         Parameters:
             quantity -- Quantity name as provided in instrument driver
         """
-        value = self.ask(self._driver['quantities'][quantity]['get_cmd'])
-        self._logger.info(f"'{quantity}' is set to '{value}.'")
-
-        # Update latest value in DB in case it is incorrect
-        self._set_latest_value(quantity, value)
-
-        value = self.convert_return_value(quantity, value)
-        self._update_visibility(quantity, value)
-
+        value = self.quantities[quantity]
+        self.update_visibility(quantity, value)
         return value
 
     def get_latest_value(self, quantity):
-        url = r'http://127.0.0.1:5000/instrumentDB/getLatestValue'
-        response = requests.get(url, params={'cute_name': self._name, 'label': quantity})
-
-        if 300 > response.status_code >= 200:
-            return dict(response.json())['latest_value']
-        else:
-            response.raise_for_status()
+        return self.quantities[quantity].latest
 
     def set_default_value(self, quantity):
         """Sets default value for given quantity
@@ -319,158 +237,26 @@ class InstrumentManager:
         Raises:
             ValueError -- If value is outside of quantity's limits or predefined string values
         """
-        self._check_limits(quantity, value)
+        self.quantities[quantity].set_value(value)
+        self.update_visibility(quantity, value)
 
-        value = self.convert_value(quantity, value)
-
-        # add the value to the command and write to instrument
-        cmd = self._driver['quantities'][quantity]['set_cmd']
-        if "<*>" in cmd:
-            cmd = cmd.replace("<*>", str(value))
-        else:
-            cmd += f' {value}'
-
-        self._logger.debug(f"'{quantity}' is set to '{value}.'")
-        self._instrument.write(cmd)
-        self._set_latest_value(quantity, value)
-        self._update_visibility(quantity, value)
-
-    def _set_latest_value(self, quantity, value):
-        url = r'http://127.0.0.1:5000/instrumentDB/setLatestValue'
-        response = requests.put(url, params={'cute_name': self._name, 'label': quantity, 'latest_value': value})
-        if response.status_code >= 300:
-            response.raise_for_status()
-
-    def _check_limits(self, quantity, value):
-        """Checks value against the limits or state values (for a combo) of a quantity
-            Parameters:
-                quantity -- qunatity whose limit to compare
-                value -- value to compare against
-            Raises:
-                ValueError if value is out of range of limit or not in one of the combos states
-        """
-        lower_lim = self._driver['quantities'][quantity]['low_lim']
-        upper_lim = self._driver['quantities'][quantity]['high_lim']
-
-        # check limits
-        if not lower_lim == '-INF' and value < float(lower_lim):
-            raise ValueError(f"{value} is lower than {quantity}'s lower limit of {lower_lim}.")
-        if not upper_lim == '+INF' and value < float(upper_lim):
-            raise ValueError(f"{value} is higher than {quantity}'s upper limit of {upper_lim}.")
-
-        # check for valid states for Combos
-        if self._driver['quantities'][quantity]['data_type'].upper() == 'COMBO':
-            if self._driver['quantities'][quantity]['combo_cmd']:
-                valid_states = list(self._driver['quantities'][quantity]['combo_cmd'].keys())
-                valid_cmds = list(self._driver['quantities'][quantity]['combo_cmd'].values())
-            else:
-                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
-
-            if value not in (valid_states or valid_cmds):
-                raise ValueError(f"{value} is not a recognized state of {quantity}'s states. Valid states are {valid_states}.")
-
-    def _update_visibility(self, quantity_changed, new_value):
+    def update_visibility(self, quantity_changed, new_value):
         """Updates visibility of all quantities whose state_quant is the quantity_changed
             Parameters:
                 quantity_changed -- qunatity whose value was just changed
                 new_value -- value that quantity was just changed to
         """
-        converted_value = self.convert_return_value(quantity_changed, new_value)
+        converted_value = self.quantities[quantity_changed].convert_return_value(new_value)
 
-        for quantity in self._driver['quantities'].values():
-            if quantity['state_quant'] != quantity_changed:
+        for quantity in self.quantities.values():
+            if quantity.state_quant != quantity_changed:
                 continue
 
             # allows user to insert either the user form or command form of the state value in .ini
-            if str(converted_value) in quantity['state_values'] or str(new_value) in quantity['state_values']:
-                quantity["is_visible"] = True
+            if str(converted_value) in quantity.state_values or str(new_value) in quantity.state_values:
+                quantity.is_visible = True
             else:
-                quantity["is_visible"] = False
-
-    def is_visible(self, quantity):
-        return self._driver['quantities'][quantity]['is_visible']
-
-    def convert_value(self, quantity, value):
-        """Converts given value from user form to command form
-            Parameters:
-                quantity -- quantity that holds the pre-defined value
-                value -- value that needs converting
-            Returns:
-                Converted value
-            Raises:
-                ValueError
-        """
-        quantity_dict = self._driver['quantities'][quantity]
-
-        # change boolean values to driver specified boolean values
-        # Checks allow for user to pass in TRUE, FALSE, or driver-defined values
-        if quantity_dict['data_type'].upper() == 'BOOLEAN':
-            value = str(value).strip()
-            
-            if value.upper() in ("TRUE", self._driver['visa']['str_true'].upper().strip()):
-                return self._driver['visa']['str_true']
-            elif value.upper() in ("FALSE", self._driver['visa']['str_false'].upper().strip()):
-                return self._driver['visa']['str_false']
-            else:
-                raise ValueError(f"{value} is not a valid boolean value.")
-
-        # Check Combo values
-        elif quantity_dict['data_type'].upper() == 'COMBO':
-            value = value.strip()
-
-            # combo quantity contains no states or commands
-            if not quantity_dict['combo_cmd']:
-                raise ValueError(f"Quantity {quantity} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.") 
- 
-            # if user provided name of the state, convert it to command value 
-            if value in (combo.strip() for combo in quantity_dict['combo_cmd'].keys()):
-                return quantity_dict['combo_cmd'][value]
-            # return given value as it is already a valid value for the command
-            elif value in (combo.strip() for combo in quantity_dict['combo_cmd'].values()):
-                return value
-            # incorrect value given, raise error
-            else:
-                raise ValueError(f"Quantity '{quantity}' of type 'COMBO' has no ") 
-
-        else:
-            return value
-
-    def convert_return_value(self, quantity, value):
-        """Converts given value from command form to user form
-            Parameters:
-                quantity -- quantity that holds the pre-defined value
-                value -- value that needs converting
-            Returns:
-                Converted value
-            Raises:
-                ValueError
-        """
-        quantity_dict = self._driver['quantities'][quantity]
-
-        # change driver specified boolean values to boolean value
-        if quantity_dict['data_type'].upper() == 'BOOLEAN':
-            value = str(value).strip()
-            if value.upper() == self._driver['visa']['str_true'].upper().strip():
-                return True
-            elif value.upper() == self._driver['visa']['str_false'].upper().strip():
-                return False
-            else:
-                raise ValueError(f"{self.name} returned an invalid value for {quantity}. {value} is not a valid boolean value. Please check instrument driver.")
-            
-        # Instrument will return instrument-defined value, convert it to driver-defined value
-        elif quantity_dict['data_type'].upper() == 'COMBO':
-            value = value.strip()
-
-            # key contains driver-defined value, cmd contains instrument-defined value
-            # need to return driver-defined value
-            for key, cmd in quantity_dict['combo_cmd'].items():
-                if value in (key.strip(), cmd.strip()):
-                    return key
-
-            raise ValueError(f"{self.name} returned an invalid value for {quantity}. {value} is not a valid combo value. Please check instrument driver.")
-        
-        else:
-            return value
+                quantity.is_visible = False
 
     def _is_serial_instrument(self):
         """Does current instrument use serial to communicate?"""
