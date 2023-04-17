@@ -294,7 +294,7 @@ class InstrumentServerWindow(QMainWindow):
             QMessageBox.critical(self, 'ERROR', f'Could not connect to instrument: {e}')
 
     def connect_all_btn_clicked(self):
-        """Attmepts to connect all listed instruments"""
+        """Attempts to connect all listed instruments"""
         self.get_logger().debug('Connect All was clicked')
 
         failed_connections = []

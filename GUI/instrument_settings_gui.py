@@ -304,7 +304,6 @@ class InstrumentSettingsGUI(QWidget):
         return {'label': label, 'value': value}
 
     def _reset_data_clicked(self):
-
         self.logger.info('Reset was clicked')
         button = QMessageBox.question(self, "Reset View", 'Are you sure you want to restore original values?')
 
@@ -313,44 +312,77 @@ class InstrumentSettingsGUI(QWidget):
             self.general_settings_box.rest_all_my_frames()
             self.visa_settings_box.rest_all_my_frames()
 
+    def process_setting_updates(self, setting_dict, setting_frames):
+        for frame in setting_frames:
+            for entry in setting_dict.keys():
+                if frame.get_frame_dto().db_column == entry:
+                    if frame.get_gui_value() != setting_dict[entry]:
+                        print(f'Frame: {frame.get_gui_value()} != {setting_dict[entry]}')
+                        self._update_db_value_with_frame_data(frame)
+
     def _update_settings_clicked(self):
         self.logger.info('Update was clicked')
 
-        main_settings_dict = self.instrument_settings_dict['instrument_interface']
+        error_occurred = False
+        try:
+            # Process Main Settings updates
+            main_settings_dict = self.instrument_settings_dict['instrument_interface']
+            self.process_setting_updates(main_settings_dict, self._main_settings_frames)
 
-        # Process Main Settings udpates
-        for frame in self._main_settings_frames:
-            for entry in main_settings_dict.keys():
-                if frame.get_frame_dto().db_column == entry:
-                    if frame.get_gui_value() != main_settings_dict[entry]:
-                        self._update_db_value_with_frame_data(frame)
+            # Process General Settings updates
+            gen_settings_dict = self.instrument_settings_dict['general_settings']
+            self.process_setting_updates(gen_settings_dict, self._general_settings_frames)
+
+            # Process VISA Settings updates
+            visa_settings_dict = self.instrument_settings_dict['visa']
+            self.process_setting_updates(visa_settings_dict, self._visa_settings_frames)
+
+        except Exception as ex:
+            error_occurred = True
+            QMessageBox.critical(self, 'ERROR', str(ex))
+
+        if not error_occurred:
+            msg_box = QMessageBox(self)
+            msg = f'Instrument: ({self.cute_name}) was successfully updated.'
+            msg_box.setWindowTitle("Update Instrument")
+            msg_box.setText(msg)
+            msg_box.show()
+
+        self._exit_gui()
 
     def _update_db_value_with_frame_data(self, frame: SettingFrame):
+        """
+        Updates Instrument Server DB with GUI Frame Data
+        """
 
-        frame_dto = frame.get_frame_dto()
+        print('called _update_db_value_with_frame_data')
 
-        updated_smt = f"UPDATE {frame_dto.db_table} SET {frame_dto.db_column} = {frame.get_gui_value()} " \
-                      f"WHERE {frame_dto.unique_key_column} = '{frame_dto.unique_key_value}';"
-
-        if frame.get_value_data_type() == 'str':
-
-            updated_smt = f"UPDATE {frame_dto.db_table} SET {frame_dto.db_column} = '{frame.get_gui_value()}' " \
+        # Only update the values that exist (not None)
+        if frame.get_frame_dto().value is not None:
+            frame_dto = frame.get_frame_dto()
+            updated_smt = f"UPDATE {frame_dto.db_table} SET {frame_dto.db_column} = {frame.get_gui_value()} " \
                           f"WHERE {frame_dto.unique_key_column} = '{frame_dto.unique_key_value}';"
 
-        with self.flask_app.app_context():
-            try:
-                connection = db.get_db()
-                with connection.cursor() as cursor:
-                    cursor.execute(updated_smt)
-                    connection.commit()
+            if frame.get_value_data_type() == 'str':
+                updated_smt = f"UPDATE {frame_dto.db_table} SET {frame_dto.db_column} = '{frame.get_gui_value()}' " \
+                              f"WHERE {frame_dto.unique_key_column} = '{frame_dto.unique_key_value}';"
 
-            except Exception as ex:
-                self.logger.fatal(f'There was an ERROR updating instrument settings for instrument '
-                                  f' {frame_dto.unique_key_value}: {ex}')
+            with self.flask_app.app_context():
+                try:
+                    connection = db.get_db()
+                    with connection.cursor() as cursor:
+                        cursor.execute(updated_smt)
+                        connection.commit()
 
-            finally:
-                # Make sure we always close the connection
-                db.close_db(connection)
+                except Exception as ex:
+                    error_msg = f'There was an ERROR updating instrument settings for ' \
+                                f'instrument {frame_dto.unique_key_value}: {ex}'
+                    self.logger.fatal(error_msg)
+                    raise Exception(error_msg)
+
+                finally:
+                    # Make sure we always close the connection
+                    db.close_db(connection)
 
     def _exit_gui(self):
         """
