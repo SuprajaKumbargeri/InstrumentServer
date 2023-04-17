@@ -10,12 +10,14 @@ from PyQt6.QtWidgets import QLineEdit, QComboBox, QLabel, QPushButton, QHBoxLayo
 # SettingFrameDTO
 ###################################################################################
 class SettingFrameDTO:
-    def __init__(self, label, value, db_table, db_column, db_connection):
+    def __init__(self, label, value, db_table, db_column, unique_key_column, unique_key_value):
         self._label = label
         self._value = value
         self._db_table = db_table
         self._db_column = db_column
-        self._db_connection = db_connection
+        self._unique_key_column = unique_key_column
+        self._unique_key_value = unique_key_value
+        self._cascade_update = False
 
     @property
     def label(self):
@@ -38,9 +40,20 @@ class SettingFrameDTO:
         return self._db_column
 
     @property
-    def db_connection(self):
-        return self._db_connection
+    def unique_key_column(self):
+        return self._unique_key_column
 
+    @property
+    def unique_key_value(self):
+        return self._unique_key_value
+
+    @property
+    def cascade_update(self):
+        return self._cascade_update
+
+    @cascade_update.setter
+    def cascade_update(self, flag):
+        self._cascade_update = flag
 
 ###################################################################################
 # SettingFrame
@@ -64,6 +77,15 @@ class SettingFrame(QtW.QFrame):
         self.label.setMaximumHeight(25)
         self.layout.addWidget(self.label, self.label_weight)
 
+    def get_frame_dto(self):
+        return self.frame_dto
+
+    def get_gui_value(self):
+        pass
+
+    def get_value_data_type(self):
+        pass
+
     def reset(self):
         pass
 
@@ -78,6 +100,12 @@ class StringSettingFrame(SettingFrame):
 
     def reset(self):
         self.stringBox.setText(str(self.frame_dto.value))
+
+    def get_gui_value(self):
+        return self.stringBox.text()
+
+    def get_value_data_type(self):
+        return 'str'
 
 
 class ComboBoxSettingFrame(SettingFrame):
@@ -96,6 +124,12 @@ class ComboBoxSettingFrame(SettingFrame):
     def reset(self):
         interface_combo_index = self.combo_box.findText(self.frame_dto.value)
         self.combo_box.setCurrentIndex(interface_combo_index)
+
+    def get_gui_value(self):
+        return self.combo_box.currentText()
+
+    def get_value_data_type(self):
+        return 'str'
 
 
 class TwoRadioButtonSettingFrame(SettingFrame):
@@ -131,6 +165,12 @@ class TwoRadioButtonSettingFrame(SettingFrame):
         self.true_radio_button.setChecked(bool(self.frame_dto.value))
         self.false_radio_button.setChecked(not bool(self.frame_dto.value))
 
+    def get_gui_value(self):
+        return self.true_radio_button.isChecked()
+
+    def get_value_data_type(self):
+        return 'bool'
+
 
 class FileDialogSettingFrame(SettingFrame):
     def __init__(self, frame_dto: SettingFrameDTO, logger: logging.Logger):
@@ -161,6 +201,12 @@ class FileDialogSettingFrame(SettingFrame):
         if file_name[0]:
             self.path_line.setText(file_name[0])
 
+    def get_gui_value(self):
+        return self.path_line.text()
+
+    def get_value_data_type(self):
+        return 'str'
+
 
 class IntegerSettingFrame(SettingFrame):
     def __init__(self, frame_dto: SettingFrameDTO, min_int, max_int, logger: logging.Logger):
@@ -179,6 +225,12 @@ class IntegerSettingFrame(SettingFrame):
     def reset(self):
         if self.frame_dto.value:
             self.intSpinBox.setValue(int(self.frame_dto.value))
+
+    def get_gui_value(self):
+        return self.intSpinBox.value()
+
+    def get_value_data_type(self):
+        return 'int'
 
 
 ###################################################################################

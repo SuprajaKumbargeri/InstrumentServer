@@ -17,7 +17,7 @@ END $$;
 
 -- contains basic info of the instrument driver
 CREATE TABLE IF NOT EXISTS general_settings (
-	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name),
+	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name) ON UPDATE CASCADE,
 	name TEXT NOT NULL, 
 	ini_path TEXT NOT NULL,
 	driver_path TEXT,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS general_settings (
 );
 
 CREATE TABLE IF NOT EXISTS model_and_options (
-	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name),
+	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name) ON UPDATE CASCADE,
 	check_model BOOLEAN DEFAULT false,
 	model_cmd TEXT DEFAULT '*IDN?',
 	models TEXT[],
@@ -58,7 +58,7 @@ END $$;
 
 -- VISA settings of driver
 CREATE TABLE IF NOT EXISTS visa (
-	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name),
+	cute_name TEXT PRIMARY KEY REFERENCES instruments(cute_name) ON UPDATE CASCADE,
 	use_visa BOOLEAN,
 	reset BOOLEAN DEFAULT false,
 	query_instr_errors BOOLEAN,
@@ -108,7 +108,7 @@ END $$;
 	Section name is stored as label unless the driver specifies a label for that section
 */
 CREATE TABLE IF NOT EXISTS quantities (
-	cute_name TEXT REFERENCES instruments(cute_name),
+	cute_name TEXT REFERENCES instruments(cute_name) ON UPDATE CASCADE,
 	label TEXT,
 	data_type datatype,
 	unit TEXT,

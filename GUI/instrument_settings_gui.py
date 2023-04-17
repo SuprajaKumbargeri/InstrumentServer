@@ -6,8 +6,9 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QTr
                              QFrame, QApplication, QMessageBox)
 import logging
 
+from DB import db
 from GUI.setting_frames import StringSettingFrame, ComboBoxSettingFrame, FileDialogSettingFrame, SettingsGroupBox, \
-    SettingFrameDTO, TwoRadioButtonSettingFrame, IntegerSettingFrame
+    SettingFrameDTO, TwoRadioButtonSettingFrame, IntegerSettingFrame, SettingFrame
 
 INTERFACES = ['TCPIP', 'USB', 'GPIB']
 TERM_CHARS = ['Auto', 'None', 'CR', 'LF', 'CR+LF']
@@ -116,6 +117,7 @@ class InstrumentSettingsGUI(QWidget):
         reset_btn.clicked.connect(self._reset_data_clicked)
 
         update_btn = QPushButton("Update")
+        update_btn.clicked.connect(self._update_settings_clicked)
 
         quit_btn = QPushButton("Quit")
         quit_btn.clicked.connect(self._exit_gui)
@@ -166,35 +168,43 @@ class InstrumentSettingsGUI(QWidget):
         unique_name_dto = SettingFrameDTO('Unique Name',
                                           instrument_interface_dict['cute_name'],
                                           'instruments',
-                                          'cute_name', None)
+                                          'cute_name',
+                                          'cute_name',
+                                          self.cute_name)
+
+        unique_name_dto.cascade_update = True
         main_settings_frames.append(StringSettingFrame(unique_name_dto, self.logger))
 
         address_dto = SettingFrameDTO('Address',
                                       instrument_interface_dict['address'],
                                       'instruments',
                                       'address',
-                                      None)
+                                      'cute_name',
+                                      self.cute_name)
         main_settings_frames.append(StringSettingFrame(address_dto, self.logger))
 
         interface_dto = SettingFrameDTO('Interface',
                                         instrument_interface_dict['interface'],
                                         'instruments',
                                         'interface',
-                                        None)
+                                        'cute_name',
+                                        self.cute_name)
         main_settings_frames.append(ComboBoxSettingFrame(interface_dto, INTERFACES, self.logger))
 
         driver_path_dto = SettingFrameDTO('Driver Path',
                                           general_settings_dict['ini_path'],
                                           'general_settings',
                                           'ini_path',
-                                          None)
+                                          'cute_name',
+                                          self.cute_name)
         main_settings_frames.append(FileDialogSettingFrame(driver_path_dto, self.logger))
 
         is_serial_dto = SettingFrameDTO('Serial Instrument',
                                         instrument_interface_dict['serial'],
                                         'instruments',
                                         'serial',
-                                        None)
+                                        'cute_name',
+                                        self.cute_name)
 
         main_settings_frames.append(TwoRadioButtonSettingFrame(is_serial_dto, self.logger))
 
@@ -202,7 +212,8 @@ class InstrumentSettingsGUI(QWidget):
                                       instrument_interface_dict['visa'],
                                       'instruments',
                                       'visa',
-                                      None)
+                                      'cute_name',
+                                      self.cute_name)
 
         main_settings_frames.append(TwoRadioButtonSettingFrame(is_visa_dto, self.logger))
 
@@ -221,7 +232,8 @@ class InstrumentSettingsGUI(QWidget):
                                         general_settings_dict[column],
                                         'general_settings',
                                         column,
-                                        None)
+                                        'cute_name',
+                                        self.cute_name)
 
             match column:
                 case 'interface':
@@ -252,7 +264,8 @@ class InstrumentSettingsGUI(QWidget):
                                         visa_settings_dict[column],
                                         'visa',
                                         column,
-                                        None)
+                                        'cute_name',
+                                        self.cute_name)
 
             match column:
                 case 'always_read_after_write' | 'gpib_go_to_local' | 'query_instr_errors' | 'reset' | 'tcpip_specify_port' | 'use_visa':
@@ -299,6 +312,45 @@ class InstrumentSettingsGUI(QWidget):
             self.main_settings_box.rest_all_my_frames()
             self.general_settings_box.rest_all_my_frames()
             self.visa_settings_box.rest_all_my_frames()
+
+    def _update_settings_clicked(self):
+        self.logger.info('Update was clicked')
+
+        main_settings_dict = self.instrument_settings_dict['instrument_interface']
+
+        # Process Main Settings udpates
+        for frame in self._main_settings_frames:
+            for entry in main_settings_dict.keys():
+                if frame.get_frame_dto().db_column == entry:
+                    if frame.get_gui_value() != main_settings_dict[entry]:
+                        self._update_db_value_with_frame_data(frame)
+
+    def _update_db_value_with_frame_data(self, frame: SettingFrame):
+
+        frame_dto = frame.get_frame_dto()
+
+        updated_smt = f"UPDATE {frame_dto.db_table} SET {frame_dto.db_column} = {frame.get_gui_value()} " \
+                      f"WHERE {frame_dto.unique_key_column} = '{frame_dto.unique_key_value}';"
+
+        if frame.get_value_data_type() == 'str':
+
+            updated_smt = f"UPDATE {frame_dto.db_table} SET {frame_dto.db_column} = '{frame.get_gui_value()}' " \
+                          f"WHERE {frame_dto.unique_key_column} = '{frame_dto.unique_key_value}';"
+
+        with self.flask_app.app_context():
+            try:
+                connection = db.get_db()
+                with connection.cursor() as cursor:
+                    cursor.execute(updated_smt)
+                    connection.commit()
+
+            except Exception as ex:
+                self.logger.fatal(f'There was an ERROR updating instrument settings for instrument '
+                                  f' {frame_dto.unique_key_value}: {ex}')
+
+            finally:
+                # Make sure we always close the connection
+                db.close_db(connection)
 
     def _exit_gui(self):
         """
