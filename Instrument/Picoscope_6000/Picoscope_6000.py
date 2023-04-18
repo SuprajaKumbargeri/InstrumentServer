@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 from picoscope import *
-from Instrument.non_visa_instrument_manager import InstrumentManager
+from Instrument.instrument_manager import InstrumentManager
 import numpy as np
 import time
 import matplotlib.pyplot as plt
 
 
-class Driver(InstrumentManager):
+class Picoscope_6000(InstrumentManager):
     """ This class implements the picoscope"""
 
     def __init__(self, name, driver, logger):

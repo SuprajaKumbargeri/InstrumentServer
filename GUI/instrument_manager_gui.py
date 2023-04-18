@@ -67,11 +67,9 @@ class InstrumentManagerGUI(QWidget):
         Groups are then assigned to sections. Groups/sections can be found in instrument driver"""
         sections = dict()
 
-        for quantity in self._im.quantity_names:
-            quantity_info = self._im.get_quantity_info(quantity)
+        for quantity in self._im.quantities.values():
 
-            frame = quantity_frame_factory(quantity_info, self._im.get_value, self._im.set_value,
-                                           self._im.set_default_value, self._handle_quant_value_change, self.logger)
+            frame = quantity_frame_factory(quantity, self._handle_quant_value_change, self.logger)
             frame.setFixedHeight(40)
 
             # store all frames in a lookup list
@@ -79,11 +77,11 @@ class InstrumentManagerGUI(QWidget):
             self.quantity_frames.append(frame)
 
             # get section name, default to Uncategorized
-            section_name = quantity_info['section']
+            section_name = quantity.section
             if not section_name:
                 section_name = 'Uncategorized'
             # get group name, default to Uncategorized
-            group_name = quantity_info['groupname']
+            group_name = quantity.groupname
             if not group_name:
                 group_name = 'Uncategorized'
 
@@ -141,21 +139,10 @@ class InstrumentManagerGUI(QWidget):
             else:
                 section.setHidden(True)
 
-    def _handle_quant_value_change(self, state_quant_name, state_value):
+    def _handle_quant_value_change(self, quantity_changed, new_value):
         """Called by QuantityFrame when the quantity's value is changed.
         Sets visibility of other quantities depending on new value"""
-        for quantity_frame in self.quantity_frames:
-            # Not dependent on the quantity that changed
-            if quantity_frame.state_quant != state_quant_name:
-                continue
+        self._im.update_visibility(quantity_changed, new_value)
 
-            if state_value in quantity_frame.state_values:
-                quantity_frame.setHidden(False)
-                self.logger.debug(f"{quantity_frame.name} is now visible.")
-            # the list is populated with quantity.state_values in user form
-            elif state_value in (self._im.convert_return_value(state_quant_name, v) for v in quantity_frame.state_values):
-                quantity_frame.setHidden(False)
-                self.logger.debug(f"{quantity_frame.name} is now visible.")
-            else:
-                quantity_frame.setHidden(True)
-                self.logger.debug(f"{quantity_frame.name} is now hidden.")
+        for quantity_frame in self.quantity_frames:
+            quantity_frame.setVisible(quantity_frame.quantity.is_visible)

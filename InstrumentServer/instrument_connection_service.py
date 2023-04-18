@@ -98,7 +98,7 @@ class InstrumentConnectionService:
             self._connected_instruments[cute_name] = im
             self.my_logger.info(f"VISA connection established to: {cute_name}.")
         # InstrumentManager may throw value error, this service should throw a Connection error
-        except ValueError as e:
+        except Exception as e:
             raise ConnectionError(e)
 
     def connect_to_none_visa_instrument(self, cute_name: str):
@@ -109,7 +109,6 @@ class InstrumentConnectionService:
         # Use cute_name to determine the interface (hit endpoint for that)
         url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
         response = requests.get(url, params={'cute_name': cute_name})
-
         # raise exception for error
         if 200 < response.status_code >= 300:
             response.raise_for_status()
@@ -118,12 +117,12 @@ class InstrumentConnectionService:
         try:
             # importing custom driver module from the driver_path
             driver_path = response_dict["general_settings"]["driver_path"]
+            if os.path.exists(driver_path):
+                self.my_logger.info(f"Custom module file {driver_path} exists.")
             module_name = driver_path.split(os.sep)[-1].replace(".py", "")
             module_location = os.sep.join(driver_path.split(os.sep)[:-1])
-            
             sys.path.append(module_location)
             custom_driver = importlib.import_module(module_name)
-
             im = getattr(custom_driver, module_name)(name=cute_name, driver=response_dict, logger=self.my_logger)
             self._connected_instruments[cute_name] = im
 
