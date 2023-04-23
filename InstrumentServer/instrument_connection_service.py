@@ -19,6 +19,10 @@ class InstrumentConnectionService:
         self._connected_instruments = {}
         self._my_logger = logger
 
+    @property
+    def connected_instruments(self):
+        return self._connected_instruments
+
     def get_logger(self):
         """Get the application logger"""
         return self._my_logger

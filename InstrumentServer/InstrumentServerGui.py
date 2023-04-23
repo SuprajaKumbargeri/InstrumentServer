@@ -11,6 +11,7 @@ from GUI.instrument_manager_gui import InstrumentManagerGUI
 from enum import Enum
 from GUI.instrument_settings_gui import InstrumentSettingsGUI
 
+
 class INST_INTERFACE(Enum):
     USB = 'USB'
     GPIB = 'GPIB'
@@ -71,8 +72,6 @@ class InstrumentServerWindow(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
-        self.get_known_instruments()
-
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
 
@@ -89,6 +88,8 @@ class InstrumentServerWindow(QMainWindow):
 
         self._ics = instrument_connection_service.InstrumentConnectionService(self.get_logger())
 
+        self.get_known_instruments()
+        
         # Setup Additional GUI
         self.experiment_window_gui = ExperimentWindowGui(self, self._ics, self.my_logger)
 
@@ -222,7 +223,7 @@ class InstrumentServerWindow(QMainWindow):
         self.show_experiment_window()
 
     def add_btn_clicked(self):
-        print('Add was clicked')
+        self.get_logger().debug("Add was clicked")
         dlg = AddInstrumentWindow()
 
         if dlg.exec():
@@ -255,6 +256,10 @@ class InstrumentServerWindow(QMainWindow):
 
     def remove_btn_clicked(self):
         self.get_logger().debug('Remove was clicked')
+
+        if not self.check_if_instrument_selected():
+            return
+
         button = QMessageBox.question(self, "Remove Instrument",
                                       "Are you sure you want to remove the instrument '{}'?".format(
                                           self.currently_selected_instrument))
@@ -272,8 +277,8 @@ class InstrumentServerWindow(QMainWindow):
 
     def connect_btn_clicked(self):
         self.get_logger().debug('Connect was clicked')
-        if not self.currently_selected_instrument:
-            QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
+
+        if not self.check_if_instrument_selected():
             return
 
         try:
@@ -318,6 +323,10 @@ class InstrumentServerWindow(QMainWindow):
 
     def close_btn_clicked(self):
         """Closes connection to selected instrument"""
+
+        if not self.check_if_instrument_selected():
+            return
+
         try:
             self._ics.disconnect_instrument(self.currently_selected_instrument)
 
@@ -328,6 +337,13 @@ class InstrumentServerWindow(QMainWindow):
                                     'Instrument is not currently connected.')
         except Exception as e:
             QMessageBox.critical(self, 'Unknown Error', e)
+
+    def check_if_instrument_selected(self):
+        if not self.currently_selected_instrument:
+            QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
+            return False
+        else:
+            return True
 
     def close_all_btn_clicked(self):
         self.get_logger().debug('Close All was clicked')
@@ -367,7 +383,11 @@ class InstrumentServerWindow(QMainWindow):
 
     def add_instrument_to_list(self, model: str, cute_name: str, address: str) -> None:
         newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, address])
-        newItem.setIcon(0, self.red_icon)
+
+        if self._ics.is_connected(cute_name):
+            newItem.setIcon(0, self.green_icon)
+        else:
+            newItem.setIcon(0, self.red_icon)
 
     def clear_instrument_list(self):
         """
