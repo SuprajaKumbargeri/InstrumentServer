@@ -9,6 +9,7 @@ from instrument_connection_service import InstrumentConnectionService, AlreadyCo
 from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
 from enum import Enum
+from GUI.instrument_settings_gui import InstrumentSettingsGUI
 
 
 class INST_INTERFACE(Enum):
@@ -23,7 +24,6 @@ class INST_INTERFACE(Enum):
 ###################################################################################
 # InstrumentServerWindow
 ###################################################################################
-
 class InstrumentServerWindow(QMainWindow):
 
     def __init__(self, flask_app, logger: logging.Logger, dev_mode=False):
@@ -63,7 +63,7 @@ class InstrumentServerWindow(QMainWindow):
         # Since we need multiple columns, we cannot use QListWidget. Instead, we can use QTreeWidget
         # since it support columns.
         self.instrument_tree = QTreeWidget(self)
-        self.instrument_tree.setHeaderLabels(['Instrument Model', 'Cute Name', 'Address'])
+        self.instrument_tree.setHeaderLabels(['Instrument Model', 'Unique Name', 'Address'])
 
         # Allow only one selection at a time -> SingleSelection
         self.instrument_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -71,8 +71,6 @@ class InstrumentServerWindow(QMainWindow):
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-
-        self.get_known_instruments()
 
         self.instrument_tree.itemSelectionChanged.connect(self.instrument_selected_changed)
         self.main_layout.addWidget(self.instrument_tree)
@@ -88,10 +86,12 @@ class InstrumentServerWindow(QMainWindow):
         # Set the central widget
         self.setCentralWidget(self.main_widget)
 
-        # Setup Additional GUI
-        self.experiment_window_gui = ExperimentWindowGui(self, self.my_logger)
-
         self._ics = InstrumentConnectionService(self.get_logger())
+
+        self.get_known_instruments()
+        
+        # Setup Additional GUI
+        self.experiment_window_gui = ExperimentWindowGui(self, self._ics, self.my_logger)
 
         self.my_logger.info('Done initializing Instrument Server GUI')
 
@@ -199,24 +199,31 @@ class InstrumentServerWindow(QMainWindow):
         msgBox.exec()
 
     def instrument_selected_changed(self):
-        selected_instruments = self.instrument_tree.selectedItems()
+        # THere should only be one selected item
+        selected_instrument = self.instrument_tree.selectedItems()
 
-        if len(selected_instruments) > 0:
-            log_instrument = 'Currently selected instrument: {} {}'.format(selected_instruments[0].text(0),
-                                                                           selected_instruments[0].text(1))
+        if len(selected_instrument) > 0:
+            log_instrument = 'Currently selected instrument: {} {}'.format(selected_instrument[0].text(0),
+                                                                           selected_instrument[0].text(1))
 
             self.get_logger().info(log_instrument)
-            self.currently_selected_instrument = selected_instruments[0].text(1)
+            self.currently_selected_instrument = selected_instrument[0].text(1)
 
     def settings_btn_clicked(self):
-        self.get_logger().debug('Settings was clicked')
+        self.get_logger().info('Settings was clicked')
+        if not self.currently_selected_instrument:
+            QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
+            return
+
+        settings_gui = InstrumentSettingsGUI(self.flask_app, self, self.my_logger, self.currently_selected_instrument)
+        settings_gui.exec()
 
     def create_experiment_clicked(self):
         self.get_logger().debug('Create Experiment was clicked')
         self.show_experiment_window()
 
     def add_btn_clicked(self):
-        print('Add was clicked')
+        self.get_logger().debug("Add was clicked")
         dlg = AddInstrumentWindow()
 
         if dlg.exec():
@@ -249,6 +256,10 @@ class InstrumentServerWindow(QMainWindow):
 
     def remove_btn_clicked(self):
         self.get_logger().debug('Remove was clicked')
+
+        if not self.check_if_instrument_selected():
+            return
+
         button = QMessageBox.question(self, "Remove Instrument",
                                       "Are you sure you want to remove the instrument '{}'?".format(
                                           self.currently_selected_instrument))
@@ -266,8 +277,8 @@ class InstrumentServerWindow(QMainWindow):
 
     def connect_btn_clicked(self):
         self.get_logger().debug('Connect was clicked')
-        if not self.currently_selected_instrument:
-            QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
+
+        if not self.check_if_instrument_selected():
             return
 
         try:
@@ -288,7 +299,7 @@ class InstrumentServerWindow(QMainWindow):
             QMessageBox.critical(self, 'ERROR', f'Could not connect to instrument: {e}')
 
     def connect_all_btn_clicked(self):
-        """Attmepts to connect all listed instruments"""
+        """Attempts to connect all listed instruments"""
         self.get_logger().debug('Connect All was clicked')
 
         failed_connections = []
@@ -312,6 +323,10 @@ class InstrumentServerWindow(QMainWindow):
 
     def close_btn_clicked(self):
         """Closes connection to selected instrument"""
+
+        if not self.check_if_instrument_selected():
+            return
+
         try:
             self._ics.disconnect_instrument(self.currently_selected_instrument)
 
@@ -322,6 +337,13 @@ class InstrumentServerWindow(QMainWindow):
                                     'Instrument is not currently connected.')
         except Exception as e:
             QMessageBox.critical(self, 'Unknown Error', e)
+
+    def check_if_instrument_selected(self):
+        if not self.currently_selected_instrument:
+            QMessageBox.warning(self, 'Warning', 'No Instrument was selected!')
+            return False
+        else:
+            return True
 
     def close_all_btn_clicked(self):
         self.get_logger().debug('Close All was clicked')
@@ -361,7 +383,11 @@ class InstrumentServerWindow(QMainWindow):
 
     def add_instrument_to_list(self, model: str, cute_name: str, address: str) -> None:
         newItem = QTreeWidgetItem(self.instrument_tree, [model, cute_name, address])
-        newItem.setIcon(0, self.red_icon)
+
+        if self._ics.is_connected(cute_name):
+            newItem.setIcon(0, self.green_icon)
+        else:
+            newItem.setIcon(0, self.red_icon)
 
     def clear_instrument_list(self):
         """
@@ -444,7 +470,7 @@ class AddInstrumentWindow(QDialog):
         # Box 1 for driver file input
         self.file_message = QLabel("File path: *")
         self.path_line = QLineEdit()
-        self.filebutton = QPushButton("Select File*")
+        self.filebutton = QPushButton("Select File")
         self.filebutton.clicked.connect(self.getFilePath)
 
         file_input_hbox = QHBoxLayout()
@@ -467,7 +493,7 @@ class AddInstrumentWindow(QDialog):
         self.baud_rate_line = QLineEdit()
 
         self.comm_form_layout = QFormLayout()
-        self.comm_form_layout.insertRow(0, QLabel("Name: *"), self.name_line)
+        self.comm_form_layout.insertRow(0, QLabel("Unique Name: *"), self.name_line)
         self.comm_form_layout.insertRow(1, QLabel("Interface: *"), self.interface_choice)
         self.comm_form_layout.insertRow(2, QLabel("Address: *"), self.address_line)
 

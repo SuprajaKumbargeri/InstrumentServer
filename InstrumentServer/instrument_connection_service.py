@@ -25,7 +25,15 @@ class AlreadyConnectedError(Exception):
 class InstrumentConnectionService:
     def __init__(self, logger: logging.Logger) -> None:
         self._connected_instruments = {}
-        self.my_logger = logger
+        self._my_logger = logger
+
+    @property
+    def connected_instruments(self):
+        return self._connected_instruments
+
+    def get_logger(self):
+        """Get the application logger"""
+        return self._my_logger
 
     def is_connected(self, cute_name: str) -> bool:
         return cute_name in self._connected_instruments.keys()

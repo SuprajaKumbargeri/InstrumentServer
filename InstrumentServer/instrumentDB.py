@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify
 from werkzeug.exceptions import (BadRequestKeyError)
 import instrumentDBService as ids
 from DB import db
+from http import HTTPStatus
 
 bp = Blueprint("instrumentDB", __name__,  url_prefix='/instrumentDB')
 UniqueViolation = errors.lookup('23505')
@@ -21,7 +22,7 @@ def addInstrument():
         details = request.get_json()
         url = r'http://127.0.0.1:5000/driverParser/'
         instrument_details = requests.post(url, json=details['path'])
-        if 300 > instrument_details.status_code <= 200:        
+        if HTTPStatus.MULTIPLE_CHOICES > instrument_details.status_code <= HTTPStatus.OK:
             connection = db.get_db()
             cute_name = details['cute_name']
             instrument_details = instrument_details.json()
@@ -37,27 +38,27 @@ def addInstrument():
 
             # If the baud rate is provided, we will overwrite the value we got from the ini file
             if details['baud_rate']:
-                my_logger.debug(f"Baud Rate: {details['baud_rate']} was provided. Replacing value from ini file.")
+                my_logger.info(f"Baud Rate: {details['baud_rate']} was provided. Replacing value from ini file.")
                 ids.update_visa_baud_rate(connection, cute_name, details['baud_rate'])
 
             db.close_db(connection)
-            return jsonify("Instrument added."), 200
+            return jsonify("Instrument added."), HTTPStatus.OK
         else:
             raise FileNotFoundError
         
     except FileNotFoundError:
         my_logger.error("Invalid driver path.")
-        return jsonify("Invalid driver path."), 400
+        return jsonify("Invalid driver path."), HTTPStatus.BAD_REQUEST
     
     except UniqueViolation:
         connection.rollback()
         db.close_db(connection)
         my_logger.error("Instrument name already exists.")
-        return jsonify("Instrument name already exists."), 400   
+        return jsonify("Instrument name already exists."), HTTPStatus.BAD_REQUEST
 
     except Exception:
         my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
+        return jsonify(Exception.args), HTTPStatus.BAD_REQUEST
 
 
 ''' Returns 'cute_name' and 'manufacturer' of existing instruments '''
@@ -77,12 +78,12 @@ def allInstruments():
 
         db.close_db(connection)
         if len(all_instruments) == 0:
-            return jsonify("No instruments were added."), 200
-        return jsonify(all_instruments), 200
+            return jsonify("No instruments were added."), HTTPStatus.OK
+        return jsonify(all_instruments), HTTPStatus.OK
 
     except Exception:
         my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
+        return jsonify(Exception.args), HTTPStatus.BAD_REQUEST
 
 
 @bp.route('/getInstrument')
@@ -97,15 +98,35 @@ def getInstrument():
         quantities = ids.getQuantities(connection, instrument_name)
 
         db.close_db(connection)
-        return jsonify({'instrument_interface' : instrument_interface, 'general_settings' : general_settings, 'model_and_options' : model_options, 'visa' : visa_settings, 'quantities' : quantities}), 200
+        return jsonify({'instrument_interface' : instrument_interface, 'general_settings' : general_settings, 'model_and_options' : model_options, 'visa' : visa_settings, 'quantities' : quantities}), HTTPStatus.OK
 
     except BadRequestKeyError:
         my_logger.error('Invalid instrument name.')
-        return jsonify('Invalid instrument name.'), 400
+        return jsonify('Invalid instrument name.'), HTTPStatus.BAD_REQUEST
 
     except Exception:
         my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
+        return jsonify(Exception.args), HTTPStatus.BAD_REQUEST
+
+@bp.route('/getInstrumentSettings', methods = ['GET'])
+def getInstrumentSettings():
+    try:
+        instrument_name = request.args['cute_name']
+        connection = db.get_db()
+        instrument_interface = ids.getInstrumentInterface(connection, instrument_name)
+        general_settings = ids.getGenSettings(connection, instrument_name)
+        visa_settings = ids.getVisaSettings(connection, instrument_name)
+
+        db.close_db(connection)
+        return jsonify({'instrument_interface' : instrument_interface, 'general_settings' : general_settings, 'visa' : visa_settings}), HTTPStatus.OK
+
+    except BadRequestKeyError:
+        my_logger.error('Invalid instrument name.')
+        return jsonify('Invalid instrument name.'), HTTPStatus.BAD_REQUEST
+
+    except Exception:
+        my_logger.error(Exception.args)
+        return jsonify(Exception.args), HTTPStatus.BAD_REQUEST
 
 
 ''' Returns latest value of label '''
@@ -117,15 +138,15 @@ def getLatestValue():
         connection = db.get_db()
         latest_value = ids.getLatestValue(connection, instrument_name, label)
         db.close_db(connection)
-        return jsonify({'latest_value': latest_value}), 200
+        return jsonify({'latest_value': latest_value}), HTTPStatus.OK
 
     except BadRequestKeyError:
         my_logger.error('Invalid instrument name.')
-        return jsonify('Invalid instrument name.'), 400
+        return jsonify('Invalid instrument name.'), HTTPStatus.BAD_REQUEST
 
     except Exception:
         my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
+        return jsonify(Exception.args), HTTPStatus.BAD_REQUEST
 
 
 
@@ -139,15 +160,15 @@ def setLatestValue():
         connection = db.get_db()
         ids.setLatestValue(connection, latest_value, instrument_name, label)
         db.close_db(connection)
-        return jsonify("Instrument's latest value on {label} updated.".format(label=label)), 200
+        return jsonify("Instrument's latest value on {label} updated.".format(label=label)), HTTPStatus.OK
 
     except BadRequestKeyError:
         my_logger.error('Invalid instrument name or label.')
-        return jsonify('Invalid instrument name or label.'), 400
+        return jsonify('Invalid instrument name or label.'), HTTPStatus.BAD_REQUEST
 
     except Exception:
         my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
+        return jsonify(Exception.args), HTTPStatus.BAD_REQUEST
     
 @bp.route('/removeInstrument')
 def removeInstrument():
@@ -156,12 +177,12 @@ def removeInstrument():
         connection = db.get_db()
         ids.deleteInstrument(connection, instrument_name)
         db.close_db(connection)
-        return jsonify('Instrument removed.'), 200
+        return jsonify('Instrument removed.'), HTTPStatus.OK
     
     except BadRequestKeyError:
         my_logger.error('Invalid instrument name.')
-        return jsonify('Invalid instrument name.'), 400
+        return jsonify('Invalid instrument name.'), HTTPStatus.BAD_REQUEST
     
     except Exception:
         my_logger.error(Exception.args)
-        return jsonify(Exception.args), 400
+        return jsonify(Exception.args), HTTPStatus.BAD_REQUEST
