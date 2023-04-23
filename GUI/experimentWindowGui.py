@@ -8,19 +8,18 @@ from GUI.quantity_frames import *
 from GUI.channels_table import *
 from GUI.sequence_table import *
 from GUI.log_channels_table import *
-from Instrument.instrument_manager import InstrumentManager
 
 ###################################################################################
 # ExperimentWindowGui
 ###################################################################################
 class ExperimentWindowGui(QMainWindow):
-    def __init__(self, parent_gui, instrument_manager: InstrumentManager, logger: logging.Logger):
+    def __init__(self, parent_gui, ics, logger: logging.Logger):
         super().__init__()
         self.parent_gui = parent_gui
         self.my_logger = logger
         self.setWindowTitle('Experiment')
         self.resize(1000, 800)
-        self._ics = instrument_manager
+        self._ics = ics
         self._working_instruments = dict()
 
         lab_experiment_icon = QIcon("../Icons/labExperiment.png")
