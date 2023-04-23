@@ -5,7 +5,7 @@ from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from DB import db
-import instrument_connection_service
+from instrument_connection_service import InstrumentConnectionService, AlreadyConnectedError
 from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
 from enum import Enum
@@ -86,7 +86,7 @@ class InstrumentServerWindow(QMainWindow):
         # Set the central widget
         self.setCentralWidget(self.main_widget)
 
-        self._ics = instrument_connection_service.InstrumentConnectionService(self.get_logger())
+        self._ics = InstrumentConnectionService(self.get_logger())
 
         self.get_known_instruments()
         
@@ -291,11 +291,11 @@ class InstrumentServerWindow(QMainWindow):
                 current_item = self.instrument_tree.currentItem()
                 current_item.setIcon(0, self.green_icon)
 
-        except ValueError as e:
-            QMessageBox.information(self, 'Instrument is already connected.', 'Instrument is already connected.')
+        except AlreadyConnectedError:
+            QMessageBox.information(self, 'Instrument is already connected', 'Instrument is already connected')
 
         except Exception as e:
-            self.get_logger().fatal(f'There was a problem connecting to instrument: {e}')
+            self.get_logger().critical(f'There was a problem connecting to instrument: {e}')
             QMessageBox.critical(self, 'ERROR', f'Could not connect to instrument: {e}')
 
     def connect_all_btn_clicked(self):

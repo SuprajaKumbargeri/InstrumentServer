@@ -16,12 +16,12 @@ TERM_CHAR = Enum('TERM_CHAR',
 # InstrumentManager
 ###################################################################################
 class InstrumentManager:
-    def __init__(self, name, connection, logger):
+    def __init__(self, name, connection, driver, logger):
         self._name = name
         self._logger = logger
         self._rm = None
         self._instrument = None
-        self._driver = None
+        self._driver = driver
         self._timeout = 1000.0
         self._term_chars = None
         self._send_end = None
@@ -32,8 +32,6 @@ class InstrumentManager:
         self.query_errors = None
         self.quantities = dict()
 
-        # Get the driver dictionary
-        self._get_driver()
         self._initialize_instrument(connection)
 
         try:
@@ -48,21 +46,6 @@ class InstrumentManager:
         except:
             self.close()
             raise
-
-    def _get_driver(self):
-        """Communicates with instrument server to get driver for instrument"""
-        # implementation will likely change
-        url = r'http://127.0.0.1:5000/instrumentDB/getInstrument'
-        response = requests.get(url, params={'cute_name': self._name})
-
-        if 300 > response.status_code >= 200:
-            self._driver = dict(response.json())
-        else:
-            response.raise_for_status()
-
-        # default visibility is true
-        for quantity in self._driver['quantities']:
-            self._driver['quantities'][quantity]["is_visible"] = True
 
     def _initialize_instrument(self, connection):
         """Initializes PyVISA resource if a PyVISA resource string was given at construction"""
