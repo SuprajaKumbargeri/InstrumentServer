@@ -87,10 +87,10 @@ class InstrumentServerWindow(QMainWindow):
         # Set the central widget
         self.setCentralWidget(self.main_widget)
 
-        # Setup Additional GUI
-        self.experiment_window_gui = ExperimentWindowGui(self, self.my_logger)
-
         self._ics = instrument_connection_service.InstrumentConnectionService(self.get_logger())
+
+        # Setup Additional GUI
+        self.experiment_window_gui = ExperimentWindowGui(self, self._ics, self.my_logger)
 
         self.my_logger.info('Done initializing Instrument Server GUI')
 
