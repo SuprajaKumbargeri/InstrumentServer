@@ -387,8 +387,9 @@ class ExperimentWindowGui(QMainWindow):
         # value: QuantityManager object
         quantities = {}
         # add all input quantities
-        for (ins, qty) in input:
-            quantities[(ins, qty)] = self._working_instruments[ins].quantities[qty]
+        for level in input:
+            for (ins, qty) in level:
+                quantities[(ins, qty)] = self._working_instruments[ins].quantities[qty]
         for (ins, qty) in output:
             quantities[(ins, qty)] = self._working_instruments[ins].quantities[qty]
         

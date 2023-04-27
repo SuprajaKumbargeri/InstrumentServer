@@ -190,14 +190,20 @@ For single valued quantities, set 'start' and 'stop' to this value and change th
     def get_step_sequence_quantities(self):
         input = []
         sequence = {}
-        current_level = 0
-        # TODO: Modify code to handle multi quantity sequences at the same level
+        current_level = None        
         for i in range(self.topLevelItemCount()):
             tree_item = self.topLevelItem(i)
             ins, qty = tree_item.text(1), tree_item.text(2)
             if (ins, qty) in self.quantities_added.keys():
                 sc = self.quantities_added[(ins, qty)]
-                input.append((ins, qty))
+                
+                level = sc.level
+                if current_level != level:
+                    input.append([(ins, qty)]) # create a new level of inputs
+                    current_level = level
+                else:
+                    input[-1].append((ins, qty)) # append to the previous level of inputs
+                              
                 data_type =  sc.data_type
                 if sc.value_flag:
                     points = 1

@@ -60,8 +60,8 @@ class MainExperimentProcedure(Procedure):
     # The columns in the plotter
     #
     DATA_COLUMNS = ['step', 'step2']
-    input_data_names = []
-    output_data_names = []
+    input_data_names = {}
+    output_data_names = {}
 
     def startup(self):
         self.logger.info('startup() was called')
@@ -85,16 +85,17 @@ class MainExperimentProcedure(Procedure):
                 return [seq['start']] * seq['datapoints']
             
     def set_parameters(self, inputs=None, outputs=None):
-        for instrument_name, quantity_name in self.input:
-            input_name = "Input - " + str(instrument_name) + " - " + str(quantity_name)
-            if input_name not in self.DATA_COLUMNS:
-                self.DATA_COLUMNS.append(input_name)
-                self.input_data_names.append(input_name)
+        for level in self.input:
+            for instrument_name, quantity_name in level:
+                input_name = "Input - " + str(instrument_name) + " - " + str(quantity_name)
+                if input_name not in self.DATA_COLUMNS:
+                    self.DATA_COLUMNS.append(input_name)
+                    self.input_data_names[(instrument_name, quantity_name)] = input_name
         for instrument_name, quantity_name in self.output:
             output_name = "Output - " + str(instrument_name) + " - " + str(quantity_name)
             if output_name not in self.DATA_COLUMNS:
                 self.DATA_COLUMNS.append(output_name)
-                self.output_data_names.append(output_name)
+                self.output_data_names[instrument_name, quantity_name] = output_name
 
 
 
@@ -107,13 +108,20 @@ class MainExperimentProcedure(Procedure):
 
         datapoints = 1 # number of datapoints
         individual_sequences = []
-        for input in self.input:
-            sequence = self.generate_sequence(self.sequence[input])
-            if len(sequence) == 0:
-                # TODO: handle error
-                pass
-            datapoints *= len(sequence)
-            individual_sequences.append(sequence)        
+        for level in self.input:
+            sequences_in_level = []
+            for (ins, qty) in level:
+                sequence = self.generate_sequence(self.sequence[(ins, qty)])
+                sequences_in_level.append(sequence)
+                if len(sequence) == 0:
+                    # TODO: handle error
+                    pass
+            datapoints *= len(sequences_in_level[0])
+            """
+            converting [[1, 2, 3], ['a', 'b', 'c']] to [(1, 'a'), (2, 'b'), (3, 'c')]
+            """
+            sequences_in_order = list(zip(*sequences_in_level))
+            individual_sequences.append(sequences_in_order)        
         
         combined_sequences = product(*individual_sequences)
 
@@ -121,15 +129,19 @@ class MainExperimentProcedure(Procedure):
         step = 0
 
         for step_sequence in combined_sequences:
+            # step sequence is a list of tupules [(1 , 'a'), (True, )]
             # The datapoints we record at each "step":
+            print(step_sequence)     
             data = {}
-            for index in range(len(self.input)):
-                self.quantities[self.input[index]].set_value(step_sequence[index])
-                data[self.input_data_names[index]] = step_sequence[index]
-                sleep(sleep_time)                
+            for level in range(len(self.input)):
+                for index in range(len(self.input[level])):
+                    (ins, qty) = self.input[level][index]                
+                    self.quantities[(ins, qty)].set_value(step_sequence[level][index])
+                    data[self.input_data_names[(ins, qty)]] = step_sequence[level][index]
+                    sleep(sleep_time)                
 
-            for index in range(len(self.output)):
-                data[self.output_data_names[index]] = self.quantities[self.output[index]].get_value()
+            for (ins, qty) in self.output:
+                data[self.output_data_names[(ins, qty)]] = self.quantities[(ins, qty)].get_value()
                 sleep(sleep_time)
 
             data['step'] = step
@@ -213,17 +225,18 @@ class ExperimentRunner(ManagedWindow):
                                 ('Instrument B', 'Output trigger'): self.parent_gui._working_instruments['Instrument B'].quantities['Output trigger'],
                                 ('Instrument D', 'Output trigger'): self.parent_gui._working_instruments['Instrument D'].quantities['Output trigger']                                  
                                 }
-        procedure.sequence = { ('Instrument D', 'Offset'): { 'datapoints': 5, 'start': -2.0, 'stop': 2.0, 'datatype': 'DOUBLE'},
-                                ('Instrument D', 'Output load'): { 'datapoints': 2, 'start': '10 kOhm', 'stop': '50 Ohm', 'datatype': 'COMBO'},
+        procedure.sequence = { ('Instrument D', 'Offset'): { 'datapoints': 3, 'start': -2.0, 'stop': 2.0, 'datatype': 'DOUBLE'},
+                                ('Instrument D', 'Output load'): { 'datapoints': 3, 'start': '10 kOhm', 'stop': '50 Ohm', 'datatype': 'COMBO'},
                                 ('Instrument D', 'Output trigger'): { 'datapoints': 1, 'start': 'True', 'stop': 'True', 'datatype': 'BOOLEAN'}}
         # self.parent_gui.sequence
-        procedure.input = [('Instrument D', 'Offset'), ('Instrument D', 'Output load'), ('Instrument D', 'Output trigger')]
+        procedure.input = [[('Instrument D', 'Offset'), ('Instrument D', 'Output load')], [('Instrument D', 'Output trigger')]]
         procedure.output = [('Instrument B', 'Offset'), ('Instrument B', 'Output load'), ('Instrument B', 'Output trigger')]
         '''
         procedure.input = self.parent_gui.input_DTO
         procedure.sequence = self.parent_gui.sequence_DTO
         procedure.output = self.parent_gui.output_DTO
         procedure.quantities = self.parent_gui.quantities_DTO
+        
         procedure.set_parameters()
 
         # params = {'datapoints': 9, 'start': -4.0, 'stop': 4.0}
