@@ -186,4 +186,38 @@ For single valued quantities, set 'start' and 'stop' to this value and change th
                 return False
             
         return True
+    
+    def get_step_sequence_quantities(self):
+        input = []
+        sequence = {}
+        current_level = 0
+        # TODO: Modify code to handle multi quantity sequences at the same level
+        for i in range(self.topLevelItemCount()):
+            tree_item = self.topLevelItem(i)
+            ins, qty = tree_item.text(1), tree_item.text(2)
+            if (ins, qty) in self.quantities_added.keys():
+                sc = self.quantities_added[(ins, qty)]
+                input.append((ins, qty))
+                data_type =  sc.data_type
+                if sc.value_flag:
+                    points = 1
+                    start = stop = sc.single_point_value
+                else:
+                    points = sc.number_of_points
+                    start = sc.start_value
+                    stop = sc.stop_value
+                sequence[(ins, qty)] = {'datapoints': points, 
+                                        'start':start, 
+                                        'stop':stop, 
+                                        'datatype': data_type}
+
+            else:
+                self.logger.error(f"{qty} of {ins} not found in Step Sequence table.")
+                break
             
+        return input, sequence
+
+            
+
+            
+                

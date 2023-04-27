@@ -22,6 +22,12 @@ class ExperimentWindowGui(QMainWindow):
         self._ics = ics
         self._working_instruments = dict()
 
+        # TODO: Move this to a DTO class
+        self.input_DTO = None
+        self.sequence_DTO = None
+        self.output_DTO = None
+        self.quantities_DTO = None
+
         lab_experiment_icon = QIcon("../Icons/labExperiment.png")
         self.setWindowIcon(lab_experiment_icon)
 
@@ -373,5 +379,24 @@ class ExperimentWindowGui(QMainWindow):
 
     def construct_DTO(self):
         self.get_logger().info("Constructing DTO ...")
-        pass
+        input, sequence = self.step_sequence_table.get_step_sequence_quantities()
+        output = self.log_channels_table.get_log_table_quantities()
+
+        # dictionary of quantity manager objects involved in the experiment
+        # key: (instrument_name, quantity_name)
+        # value: QuantityManager object
+        quantities = {}
+        # add all input quantities
+        for (ins, qty) in input:
+            quantities[(ins, qty)] = self._working_instruments[ins].quantities[qty]
+        for (ins, qty) in output:
+            quantities[(ins, qty)] = self._working_instruments[ins].quantities[qty]
+        
+        # TODO: Construct a DTO class object
+        self.input_DTO = input
+        self.sequence_DTO = sequence
+        self.output_DTO = output
+        self.quantities_DTO = quantities
+        return
+
 

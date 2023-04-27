@@ -16,6 +16,8 @@ class SequenceConstructor(QDialog):
         self._quantity_name = quantity.name
         self._quantity_data_type = quantity.data_type
         self._unit = ''
+        self._low_lim = quantity.low_lim
+        self._high_lim = quantity.high_lim
         if self.quantity.unit:
             self._unit = self.quantity.unit
 
@@ -139,6 +141,10 @@ class SequenceConstructor(QDialog):
     @property
     def unit(self):
         return self._unit
+    
+    @property
+    def data_type(self):
+        return self._quantity_data_type
     
     @property
     def level(self):
@@ -486,6 +492,8 @@ class DoubleConstructor(SequenceConstructor):
 
         self.single_point_label = QLabel("Value:")
         self.single_point_spin_box = QDoubleSpinBox()
+        self.single_point_spin_box.setMinimum(self._low_lim)
+        self.single_point_spin_box.setMaximum(self._high_lim)
 
         if self._single_point_value:
             self.single_point_spin_box.setValue(self._single_point_value)
@@ -495,11 +503,15 @@ class DoubleConstructor(SequenceConstructor):
 
         self.start_label = QLabel("Start:")
         self.start_spin_box = QDoubleSpinBox()
+        self.start_spin_box.setMinimum(self._low_lim)
+        self.start_spin_box.setMaximum(self._high_lim)
         if self._unit:
             self.start_spin_box.setSuffix(self._unit)
         
         self.stop_label = QLabel("Stop:")
         self.stop_spin_box = QDoubleSpinBox()
+        self.stop_spin_box.setMinimum(self._low_lim)
+        self.stop_spin_box.setMaximum(self._high_lim)
         if self._unit:
             self.stop_spin_box.setSuffix(self._unit)
 
@@ -517,7 +529,7 @@ class DoubleConstructor(SequenceConstructor):
 
         self.steps_number_label = QLabel("# of points:")
         self.steps_number_spin_box = QSpinBox()
-        self.steps_number_spin_box.setMinimum(0)
+        self.steps_number_spin_box.setMinimum(2)
         self.steps_number_spin_box.setSingleStep(1)
         self.steps_number_spin_box.setValue(2)
         self.steps_number_form_layout.addRow(self.steps_number_label, self.steps_number_spin_box)
@@ -530,7 +542,7 @@ class DoubleConstructor(SequenceConstructor):
         if self.fixed_step_spin_box.value() != 0.0:
             new_number_of_points = (self.stop_spin_box.value() - self.start_spin_box.value()) / self.fixed_step_spin_box.value()
             new_number_of_points = round(new_number_of_points)
-            self.steps_number_spin_box.setValue(new_number_of_points)
+            self.steps_number_spin_box.setValue(new_number_of_points + 1)
             if new_number_of_points != 0:
                 new_fixed_step = (self.stop_spin_box.value() - self.start_spin_box.value()) / float(new_number_of_points)
                 self.fixed_step_spin_box.setValue(new_fixed_step)
@@ -539,8 +551,8 @@ class DoubleConstructor(SequenceConstructor):
 
     def steps_number_changed(self):
         # TODO: Change logic
-        if self.steps_number_spin_box.value() != 0:
-            new_fixed_step = (self.stop_spin_box.value() - self.start_spin_box.value()) / float(self.steps_number_spin_box.value())
+        if self.steps_number_spin_box.value() >= 2:
+            new_fixed_step = (self.stop_spin_box.value() - self.start_spin_box.value()) / float(self.steps_number_spin_box.value() - 1)
             self.fixed_step_spin_box.setValue(new_fixed_step)
         else:
             self.fixed_step_spin_box.setValue(0.0)

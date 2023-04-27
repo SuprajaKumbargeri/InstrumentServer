@@ -11,6 +11,8 @@ from pymeasure.experiment import Procedure, Results
 from pymeasure.experiment import IntegerParameter, FloatParameter, Parameter
 from datetime import datetime
 
+from itertools import product
+import numpy as np
 ###################################################################################
 # StringParameter
 ###################################################################################
@@ -39,62 +41,107 @@ class StringParameter(Parameter):
 # MainExperimentProcedure
 ###################################################################################
 class MainExperimentProcedure(Procedure):
-    steps = IntegerParameter('Steps', default=50000)
-    sigma = FloatParameter('Sigma', default=10.0)
-    beta = FloatParameter('Beta', default=3.0)
-    rho = FloatParameter('Rho', default=28.0)
-    comments = StringParameter('Comments', default='No comments')
-
+    # datapoints = IntegerParameter('datapoints', default=1)
+    # start = FloatParameter('start', units='V', default=1)
+    # stop = FloatParameter('stop', units='V', default=2)
+    # TODO: Create dynamic paremeters if needed
+    
+    input = []
+    output = []
+    sequence = {}
+    quantities = {}
+    input_quantity_managers = []
+    output_quantity_managers = []
+    
     def set_logger(self, logger: logging.Logger):
         self.logger = logger
 
     #
     # The columns in the plotter
     #
-    DATA_COLUMNS = ['step', 'x', 'y', 'z']
+    DATA_COLUMNS = ['step', 'step2']
+    input_data_names = []
+    output_data_names = []
 
     def startup(self):
         self.logger.info('startup() was called')
+        
+        # if self.instruments:
+        #     self.ins_a = self.instruments['Instrument D'].quantities['Offset']
+        #     self.ins_b = self.instruments['Instrument B'].quantities['Offset']
+        # else:
+        #     self.logger.warning("Error finding instrument managers")
+        #     # TODO: Stop execution
+        #     self.shutdown()
+
+    def generate_sequence(self, seq: dict):
+        if seq['datatype'].upper() == 'DOUBLE':
+            return np.linspace(seq['start'], seq['stop'], seq['datapoints'])
+        else:
+            if seq['start'] != seq['stop']:
+                number_of_points = seq['datapoints']
+                return ([seq['start']] * (number_of_points // 2)) + ([seq['stop']] * (number_of_points - (number_of_points // 2)))
+            else:
+                return [seq['start']] * seq['datapoints']
+            
+    def set_parameters(self, inputs=None, outputs=None):
+        for instrument_name, quantity_name in self.input:
+            input_name = "Input - " + str(instrument_name) + " - " + str(quantity_name)
+            if input_name not in self.DATA_COLUMNS:
+                self.DATA_COLUMNS.append(input_name)
+                self.input_data_names.append(input_name)
+        for instrument_name, quantity_name in self.output:
+            output_name = "Output - " + str(instrument_name) + " - " + str(quantity_name)
+            if output_name not in self.DATA_COLUMNS:
+                self.DATA_COLUMNS.append(output_name)
+                self.output_data_names.append(output_name)
+
+
 
     # Sample Data Generation...
     def execute(self):
-        self.logger.info(f'Starting experiment loop of {self.steps} steps')
-
-        x = 1.0
-        y = 1.0
-        z = 1.0
-        dx = 0
-        dy = 0
-        dz = 0
-        dt = 0.001
-
+        self.logger.info(f'Starting experiment loop of {"###"} steps') # TODO: Remove
         #
         # Main experiment LOOP
         #
-        for i in range(int(self.steps)):
 
-            dx = self.sigma * (y - x)
-            dy = x * (self.rho - z) - y
-            dz = x * y - self.beta * z
+        datapoints = 1 # number of datapoints
+        individual_sequences = []
+        for input in self.input:
+            sequence = self.generate_sequence(self.sequence[input])
+            if len(sequence) == 0:
+                # TODO: handle error
+                pass
+            datapoints *= len(sequence)
+            individual_sequences.append(sequence)        
+        
+        combined_sequences = product(*individual_sequences)
 
-            x += dt * dx
-            y += dt * dy
-            z += dt * dz
+        sleep_time = 0.001
+        step = 0
 
+        for step_sequence in combined_sequences:
             # The datapoints we record at each "step":
-            data = {
-                'step': int(i),
-                'x': x,
-                'y': y,
-                'z': z
-            }
+            data = {}
+            for index in range(len(self.input)):
+                self.quantities[self.input[index]].set_value(step_sequence[index])
+                data[self.input_data_names[index]] = step_sequence[index]
+                sleep(sleep_time)                
 
+            for index in range(len(self.output)):
+                data[self.output_data_names[index]] = self.quantities[self.output[index]].get_value()
+                sleep(sleep_time)
+
+            data['step'] = step
+            self.logger.info("Data point recorded: ", data)
             self.emit('results', data)
             self.logger.debug(f'Emitting results: {data}')
-            self.emit('progress', 100 * i / self.steps)
+            self.emit('progress', 100 * step / datapoints)
 
             # Intentional sleep to simulate "live plotting"
             sleep(0.00001)
+            step += 1
+                
 
             if self.should_stop():
                 self.logger.warning("Caught the stop flag in the procedure")
@@ -108,21 +155,21 @@ class ExperimentRunner(ManagedWindow):
 
     def __init__(self, parent_gui, logger: logging.Logger, base_filename='experiment_results'):
         # Initialize the super class
+        
         super().__init__(procedure_class=MainExperimentProcedure,
-                         inputs=['steps', 'sigma', 'beta', 'rho', 'comments'],  # Inputs
-                         displays=['steps', 'sigma', 'beta', 'rho', 'comments'],  # Display GUI textboxes
-                         x_axis='x',
-                         y_axis='y',
+                         x_axis='step',
+                         y_axis='step',
                          directory_input=True)  # Enables directory input widget
+        # self.set_parameters(params)       
 
         # A reference to the invoking GUI
-        self.parent_gui = parent_gui
+        self.parent_gui = parent_gui      
 
         play_icon = QIcon("../Icons/playButton.png")
         self.setWindowIcon(play_icon)
 
         # The logger
-        self.logger = logger
+        self.logger = logger        
 
         self.base_filename = base_filename
         self.setWindowTitle('Experiment Runner')
@@ -141,6 +188,10 @@ class ExperimentRunner(ManagedWindow):
         self.main_layout.addWidget(quit_btn)
         self.main_layout.setAlignment(quit_btn, Qt.AlignmentFlag.AlignRight)
 
+    def set_parameters(self, parameters):
+        self.logger.info('Setting parameter values')
+        return super().set_parameters(parameters)
+
     def queue(self, procedure=None):
         self.logger.info('Starting measurement procedure')
 
@@ -148,9 +199,36 @@ class ExperimentRunner(ManagedWindow):
         filename = os.path.join(self.directory, self.generate_experiment_file_name(self.base_filename))
         self.logger.info(f'Writing results to file {filename}')
 
-        if procedure is None:
-            procedure = self.make_procedure()
-            procedure.set_logger(self.logger)
+        #if procedure is None:
+            # procedure = self.make_procedure()
+        procedure = MainExperimentProcedure()
+        procedure.set_logger(self.logger)
+        
+        # might be moved to startup
+        '''
+        procedure.quantities = {('Instrument B', 'Offset'): self.parent_gui._working_instruments['Instrument B'].quantities['Offset'],
+                                ('Instrument D', 'Offset'): self.parent_gui._working_instruments['Instrument D'].quantities['Offset'],
+                                ('Instrument B', 'Output load'): self.parent_gui._working_instruments['Instrument B'].quantities['Output load'],
+                                ('Instrument D', 'Output load'): self.parent_gui._working_instruments['Instrument D'].quantities['Output load'],
+                                ('Instrument B', 'Output trigger'): self.parent_gui._working_instruments['Instrument B'].quantities['Output trigger'],
+                                ('Instrument D', 'Output trigger'): self.parent_gui._working_instruments['Instrument D'].quantities['Output trigger']                                  
+                                }
+        procedure.sequence = { ('Instrument D', 'Offset'): { 'datapoints': 5, 'start': -2.0, 'stop': 2.0, 'datatype': 'DOUBLE'},
+                                ('Instrument D', 'Output load'): { 'datapoints': 2, 'start': '10 kOhm', 'stop': '50 Ohm', 'datatype': 'COMBO'},
+                                ('Instrument D', 'Output trigger'): { 'datapoints': 1, 'start': 'True', 'stop': 'True', 'datatype': 'BOOLEAN'}}
+        # self.parent_gui.sequence
+        procedure.input = [('Instrument D', 'Offset'), ('Instrument D', 'Output load'), ('Instrument D', 'Output trigger')]
+        procedure.output = [('Instrument B', 'Offset'), ('Instrument B', 'Output load'), ('Instrument B', 'Output trigger')]
+        '''
+        procedure.input = self.parent_gui.input_DTO
+        procedure.sequence = self.parent_gui.sequence_DTO
+        procedure.output = self.parent_gui.output_DTO
+        procedure.quantities = self.parent_gui.quantities_DTO
+        procedure.set_parameters()
+
+        # params = {'datapoints': 9, 'start': -4.0, 'stop': 4.0}
+        # procedure.set_parameters(params, except_missing=False)
+        
 
         results = Results(procedure, filename)
         experiment = self.new_experiment(results)

@@ -106,3 +106,7 @@ class LogChannelsTreeWidget(QTreeWidget):
     def log_channels_table_selection_changed(self):
         selected_item = self.currentItem()
         pass
+
+    def get_log_table_quantities(self):
+        output = self.quantities_added.keys()
+        return list(output)

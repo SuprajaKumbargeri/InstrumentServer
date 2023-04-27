@@ -1,0 +1,32 @@
+#Procedure: <GUI.experiment_runner_gui.MainExperimentProcedure>
+#Parameters:
+#Data:
+step,step2,Input - Instrument D - Offset,Input - Instrument D - Output load,Output - Instrument B - Offset,Output - Instrument B - Output load
+0,nan,-3.0,10 kOhm,-3.0000000000000E+00
+,10 kOhm
+1,nan,-3.0,50 Ohm,-1.5075000000000E+00
+,50 Ohm
+2,nan,-2.0,10 kOhm,-3.9801000000000E+00
+,10 kOhm
+3,nan,-2.0,50 Ohm,-1.0050000000000E+00
+,50 Ohm
+4,nan,-1.0,10 kOhm,-1.9900000000000E+00
+,10 kOhm
+5,nan,-1.0,50 Ohm,-5.0250000000000E-01
+,50 Ohm
+6,nan,0.0,10 kOhm,+0.0000000000000E+00
+,10 kOhm
+7,nan,0.0,50 Ohm,+0.0000000000000E+00
+,50 Ohm
+8,nan,1.0,10 kOhm,+1.9900000000000E+00
+,10 kOhm
+9,nan,1.0,50 Ohm,+5.0250000000000E-01
+,50 Ohm
+10,nan,2.0,10 kOhm,+3.9801000000000E+00
+,10 kOhm
+11,nan,2.0,50 Ohm,+1.0050000000000E+00
+,50 Ohm
+12,nan,3.0,10 kOhm,+5.9701000000000E+00
+,10 kOhm
+13,nan,3.0,50 Ohm,+1.5075000000000E+00
+,50 Ohm
