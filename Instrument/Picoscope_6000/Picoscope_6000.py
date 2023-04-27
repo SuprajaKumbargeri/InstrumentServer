@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from picoscope import *
 from Instrument.instrument_manager import InstrumentManager
+from Instrument.quantity_manager import QuantityManager
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -14,11 +15,27 @@ class Picoscope_6000(InstrumentManager):
         self._driver = driver
         self._logger = logger
         self._ps = self._initialize_instrument()
+        self.quantities = dict()
+
+        self._initialize_quantities()
 
     def _initialize_instrument(self):
         self._logger.debug(f"'Initializing {self._name}'...'")
         ps = ps6000.PS6000(serialNumber=None, connect=True)
         return ps
+
+    def _initialize_quantities(self):
+        str_true = self._driver['visa']['str_true']
+        str_false = self._driver['visa']['str_false']
+
+        for name, info in self._driver['quantities'].items():
+            self.quantities[name] = QuantityManager(info, self.write, self.read, str_true, str_false, self._logger, False)
+
+    def write(self, msg):
+        pass
+
+    def read(self):
+        pass
 
     def __del__(self):
         self._logger.debug(f"'Closing  {self._name}'...'")

@@ -3,7 +3,7 @@ import requests
 
 
 class QuantityManager:
-    def __init__(self, quantity_info: dict, write_method: Callable, read_method: Callable, str_true, str_false, logger=None):
+    def __init__(self, quantity_info: dict, write_method: Callable, read_method: Callable, str_true, str_false, logger=None, visa=True):
         self.instrument_name = quantity_info['cute_name']
         self.name = quantity_info['label']
         self.data_type = quantity_info['data_type'].upper()
@@ -33,19 +33,26 @@ class QuantityManager:
         self.str_true = str_true
         self.str_false = str_false
 
+        self.is_visa = visa
+
     # region set_value methods
     def set_value(self, value):
-        value = self.convert_value(value)
+        if self.is_visa:
+            value = self.convert_value(value)
 
-        # add the value to the command and write to instrument
-        cmd = self.set_cmd
-        if "<*>" in cmd:
-            cmd = cmd.replace("<*>", str(value))
+            # add the value to the command and write to instrument
+            cmd = self.set_cmd
+            if "<*>" in cmd:
+                cmd = cmd.replace("<*>", str(value))
+            else:
+                cmd += f' {value}'
+
+            self._write_method(cmd)
+            self.latest_value = value
         else:
-            cmd += f' {value}'
-
-        self._write_method(cmd)
-        self.latest_value = value
+            value = self.convert_value(value)
+            self.latest_value = value
+            self.set_latest_value(self.latest_value)
 
     def set_default_value(self):
         self.set_value(self.default_value)
@@ -62,12 +69,16 @@ class QuantityManager:
 
     # region get_value methods
     def get_value(self):
-        self._write_method(self.get_cmd)
-        value = self._read_method()
+        if self.is_visa:
+            self._write_method(self.get_cmd)
+            value = self._read_method()
 
-        # update latest value
-        self.set_latest_value(value)
-        return self.convert_return_value(value)
+            # update latest value
+            self.set_latest_value(value)
+            return self.convert_return_value(value)
+        else:
+            self.latest_value = self.get_latest_value()
+            return self.convert_return_value(self.latest_value)
 
     def get_latest_value(self):
         # query server
