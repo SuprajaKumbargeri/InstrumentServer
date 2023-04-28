@@ -81,26 +81,38 @@ class LogChannelsTreeWidget(QTreeWidget):
 
             instrument_name = data_dict['instrument_name']
             quantity_name = data_dict['quantity_name']
+            address = data_dict['address']
 
             # TODO: Remove
             if (instrument_name, quantity_name) in self.quantities_added.keys():
                 event.ignore()
                 return
             
-            item = QTreeWidgetItem(self, [quantity_name, instrument_name, ''])
+            item = QTreeWidgetItem(self, [quantity_name, instrument_name, address])
             self.quantities_added[(instrument_name, quantity_name)] = item
 
         else:
             event.ignore()
     
-    def remove_channel(self):
-        # TODO: Handle quantity removal when a channel is removed
+    """ Removes a selected quantitiy from the Log Channels Table """
+    def remove_quantity(self):
         selected_item = self.currentItem()
         if selected_item is not None:     
             instrument_name = selected_item.text(1)
             quantity_name = selected_item.text(0)       
             del self.quantities_added[(instrument_name, quantity_name)]
             self.takeTopLevelItem(self.indexOfTopLevelItem(selected_item))
+
+    """ Removes all quantities related to a instrument from the Log Channels Table """
+    def remove_channel(self, cute_name):
+        if cute_name:
+            # Traverse the tree in reverse to remove the tree widgets that belong to an instrument
+            for index in range(self.topLevelItemCount() -1, -1, -1):
+                tree_item = self.topLevelItem(index)
+                ins, qty = tree_item.text(1), tree_item.text(0)
+                if (ins, qty) in self.quantities_added.keys() and ins == cute_name:
+                    del self.quantities_added[(ins, qty)]
+                    self.takeTopLevelItem(index)
 
 
     def log_channels_table_selection_changed(self):
