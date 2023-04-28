@@ -142,14 +142,25 @@ class StepSequenceTreeWidget(QTreeWidget):
             self.update_tree()
         return
 
-    def remove_channel(self):
-        # TODO: Handle sequence removal when a channel is removed
+    """ Removes a selected quantitiy sequence from the Step Sequence Table """
+    def remove_quantity(self):
         selected_item = self.currentItem()
         if selected_item is not None:     
             instrument_name = selected_item.text(1)
             quantity_name = selected_item.text(2)       
             del self.quantities_added[(instrument_name, quantity_name)]
             self.takeTopLevelItem(self.indexOfTopLevelItem(selected_item))
+
+    """ Removes all quantity sequences related to an instrument from the Step Sequence Table """
+    def remove_channel(self, cute_name):
+        if cute_name:
+            # Traverse the tree in reverse to remove the tree widgets that belong to an instrument
+            for index in range(self.topLevelItemCount() - 1, -1, -1):
+                tree_item = self.topLevelItem(index)
+                ins, qty = tree_item.text(1), tree_item.text(2)
+                if (ins, qty) in self.quantities_added.keys() and ins == cute_name:
+                    del self.quantities_added[(ins, qty)]
+                    self.takeTopLevelItem(index)
 
     def update_tree(self):
         # Sort the tree items based on level value
@@ -176,6 +187,8 @@ class StepSequenceTreeWidget(QTreeWidget):
                         msg_box = QMessageBox()
                         msg_box.setIcon(QMessageBox.Icon.Critical)
                         msg_box.setWindowTitle("Invalid sequence data")
+                        lab_experiment_icon = QIcon("../Icons/labExperiment.png")
+                        msg_box.setWindowIcon(lab_experiment_icon)
                         msg_box.setText(f"""Number of points for '{qty}' of '{ins}' does not match the corresponding number of points at level {sc.level}.
 For single valued quantities, set 'start' and 'stop' to this value and change the number of points.""")
                         msg_box.exec()

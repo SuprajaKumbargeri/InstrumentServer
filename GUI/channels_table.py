@@ -18,9 +18,9 @@ class ChannelsTreeWidget(QTreeWidget):
 
         """
         Column Order:
-        [Instrument, Name, Instr. value, Phys. value, Server]
+        [Instrument, Name, Quantitiy Value, Server]
         """
-        self.setHeaderLabels(['Instrument', 'Name', 'Instr. value', 'Phys. value', 'Address'])
+        self.setHeaderLabels(['Instrument', 'Name', 'Value', 'Address'])
 
         # Allow only one selection at a time -> SingleSelection
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -39,10 +39,12 @@ class ChannelsTreeWidget(QTreeWidget):
     def add_channel_item(self, instrument_manager):
         im = instrument_manager
         cute_name = im.name
+        model = im.model_name
+        address = im.address
         if cute_name not in self.channels_added:
             self.channels_added[cute_name] = im
             self.quantities_added[cute_name] = {}
-            parent = QTreeWidgetItem([cute_name])
+            parent = QTreeWidgetItem([cute_name, model, '', address])
             for quantity in im.quantities.values():
                 quantity_name = quantity.name
                 value = self.get_value(quantity)
@@ -85,16 +87,18 @@ class ChannelsTreeWidget(QTreeWidget):
         # raise NotImplementedError()
 
     def remove_channel(self):
-        # May be moved to the experimentGUI class' remove method along with changes to items on other tables
         selected_item = self.currentItem()
         if selected_item is not None:            
             if selected_item.childCount() > 0:
+                cute_name = selected_item.text(0)
                 # Selected item is a parent
                 del self.channels_added[selected_item.text(0)]
                 while selected_item.childCount() > 0:
                     selected_item.takeChild(0)
                 self.takeTopLevelItem(self.indexOfTopLevelItem(selected_item))
-
+                return cute_name
+        return
+    
     def show_quantity_frame_gui(self, selected_item, column=None):   
         parent_item = selected_item.parent()
         if parent_item is not None:
@@ -158,7 +162,7 @@ class ChannelsTreeWidget(QTreeWidget):
         parent_item = selected_item.parent()
         if not parent_item:
             return
-        data_dict = {'instrument_name': parent_item.text(0), 'quantity_name': selected_item.text(0)}
+        data_dict = {'instrument_name': parent_item.text(0), 'quantity_name': selected_item.text(0), 'address': parent_item.text(3)}
 
         # Serialize the dictionary as JSON
         mime_data = QMimeData()
@@ -173,6 +177,8 @@ class AddChannelDialog(QDialog):
         super().__init__()
 
         self.setWindowTitle("Add Instrument")
+        lab_experiment_icon = QIcon("../Icons/labExperiment.png")
+        self.setWindowIcon(lab_experiment_icon)
 
         self.tree_widget = QTreeWidget()
         self.tree_widget.setHeaderLabels(['Instrument', 'Name', 'Address'])
@@ -183,7 +189,7 @@ class AddChannelDialog(QDialog):
 
         # Add the items to the tree widget
         for cute_name, ins in connected_ins.items():
-            item = QTreeWidgetItem([cute_name]) # Also get address and instrument model name
+            item = QTreeWidgetItem([cute_name, ins.model_name, ins.address])
             self.tree_widget.addTopLevelItem(item)
 
         # Add the tree widget to the layout

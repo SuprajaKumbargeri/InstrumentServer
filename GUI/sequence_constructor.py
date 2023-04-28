@@ -36,6 +36,8 @@ class SequenceConstructor(QDialog):
         # self._interpolation = "Linear"
 
         self.setWindowTitle("Step setup")
+        self.lab_experiment_icon = QIcon("../Icons/labExperiment.png")
+        self.setWindowIcon(self.lab_experiment_icon)
 
         # Set basic layout
         self.layout = QVBoxLayout()
@@ -321,6 +323,7 @@ class BooleanConstructor(SequenceConstructor):
             msg_box = QMessageBox()
             msg_box.setIcon(QMessageBox.Icon.Warning)
             msg_box.setWindowTitle("No data")
+            msg_box.setWindowIcon(self.lab_experiment_icon)
             msg_box.setText("Please provide data to build a sequence with this quantity.")
             msg_box.exec()
             self.reject()
@@ -455,6 +458,7 @@ class ComboConstructor(SequenceConstructor):
             msg_box = QMessageBox()
             msg_box.setIcon(QMessageBox.Icon.Warning)
             msg_box.setWindowTitle("No data")
+            msg_box.setWindowIcon(self.lab_experiment_icon)
             msg_box.setText("Please provide data to build a sequence with this quantity.")
             msg_box.exec()
             self.reject()
@@ -605,6 +609,7 @@ class DoubleConstructor(SequenceConstructor):
             msg_box = QMessageBox()
             msg_box.setIcon(QMessageBox.Icon.Warning)
             msg_box.setWindowTitle("No data")
+            msg_box.setWindowIcon(self.lab_experiment_icon)
             msg_box.setText("Please provide data to build a sequence with this quantity.")
             msg_box.exec()
             self.reject()

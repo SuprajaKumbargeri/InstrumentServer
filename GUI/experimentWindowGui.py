@@ -125,8 +125,10 @@ class ExperimentWindowGui(QMainWindow):
         """
         Removes an added instrument from channel table
         """
-        self.channels_table.remove_channel()
-        # TODO: handle deletion from other tables
+        instrument_name = self.channels_table.remove_channel() # returns the deleted instrument's name
+        if instrument_name:
+            self.step_sequence_table.remove_channel(instrument_name)
+            self.log_channels_table.remove_channel(instrument_name)
         return
 
     def edit_channel_quantity(self):
@@ -200,7 +202,7 @@ class ExperimentWindowGui(QMainWindow):
         """
         Removes an added quantity from sequence table
         """
-        self.step_sequence_table.remove_channel()
+        self.step_sequence_table.remove_quantity()
         return
 
     ####################################################################
@@ -302,7 +304,7 @@ class ExperimentWindowGui(QMainWindow):
         """
         Removes an added quantity from log table
         """
-        self.log_channels_table.remove_channel()
+        self.log_channels_table.remove_quantity()
         return
 
     def comment_text_changed(self):

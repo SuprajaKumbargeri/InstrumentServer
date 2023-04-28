@@ -164,6 +164,14 @@ class InstrumentManager:
     @property
     def name(self):
         return self._name
+    
+    @property
+    def model_name(self):
+        return self._driver['instrument_interface']['manufacturer']
+    
+    @property
+    def address(self):
+        return self._driver['instrument_interface']['address']
 
     @property
     def timeout(self) -> float:
