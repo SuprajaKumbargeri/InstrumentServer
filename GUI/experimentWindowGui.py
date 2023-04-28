@@ -22,6 +22,8 @@ class ExperimentWindowGui(QMainWindow):
         self._ics = ics
         self._working_instruments = dict()
 
+        self.experiment_DTO = None
+
         lab_experiment_icon = QIcon("../Icons/labExperiment.png")
         self.setWindowIcon(lab_experiment_icon)
 
@@ -72,15 +74,6 @@ class ExperimentWindowGui(QMainWindow):
         channels_section_main_layout = QVBoxLayout()
 
         self.channels_table = ChannelsTreeWidget(self._working_instruments, self.my_logger)
-
-        # Placeholder - to be removed
-        root_example = QTreeWidgetItem(self.channels_table, ['Rhode&Schwarz SG100', 'gen', '','', 'localhost'])
-        QTreeWidgetItem(root_example, ['Frequency', '', '5 Ghz'])
-        QTreeWidgetItem(root_example, ['Power', '', '-20 dBm'])
-        QTreeWidgetItem(root_example, ['Phase', '', '0 rad'])
-        QTreeWidgetItem(root_example, ['Mode', '', 'Normal'])
-        QTreeWidgetItem(root_example, ['Output', '', 'Off'])
-        root_example.setExpanded(True)
         channels_section_main_layout.addWidget(self.channels_table)
 
         # The section on the bottom that has buttons
@@ -255,10 +248,10 @@ class ExperimentWindowGui(QMainWindow):
         # The main layout for comment section
         comment_box_layout = QVBoxLayout()
 
-        comment_box = QTextEdit()
-        comment_box.textChanged.connect(self.comment_text_changed)
+        self.comment_box = QTextEdit()
+        self.comment_box.textChanged.connect(self.comment_text_changed)
 
-        comment_box_layout.addWidget(comment_box)
+        comment_box_layout.addWidget(self.comment_box)
         self.comment_group.setLayout(comment_box_layout)
 
         #############################################
@@ -273,6 +266,8 @@ class ExperimentWindowGui(QMainWindow):
 
         # Widgets in the timing form
         self.delay_time = QDoubleSpinBox()
+        self.delay_time.setMinimum(0)
+        self.delay_time.setMaximum(float('inf'))
         timing_layout.addRow(QLabel("Delay between step and measure [s]:"), self.delay_time)
         # TODO: Connect later
         # self.delay_time.valueChanged.connect(delay_time_changed)
@@ -317,7 +312,9 @@ class ExperimentWindowGui(QMainWindow):
     def experiment_runner_clicked(self):
         self.get_logger().debug('Experiment Runner clicked')
         if self.validate_experiment_data():
-            self.construct_DTO()
+            print(self.experiment_DTO)
+            self.experiment_DTO = self.construct_DTO()
+            print(self.experiment_DTO)
             self.show_experiment_runner_window()
         else:
             return
@@ -375,5 +372,63 @@ class ExperimentWindowGui(QMainWindow):
 
     def construct_DTO(self):
         self.get_logger().info("Constructing DTO ...")
-        pass
+        input_quantities, quantity_sequences = self.step_sequence_table.get_step_sequence_quantities()
+        output_quantities = self.log_channels_table.get_log_table_quantities()
 
+        # dictionary of quantity manager objects involved in the experiment
+        # key: (instrument_name, quantity_name)
+        # value: QuantityManager object
+        quantitiy_managers = {}
+        # add all input quantities
+        for level in input_quantities:
+            for (ins, qty) in level:
+                quantitiy_managers[(ins, qty)] = self._working_instruments[ins].quantities[qty]
+        for (ins, qty) in output_quantities:
+            quantitiy_managers[(ins, qty)] = self._working_instruments[ins].quantities[qty]
+        
+        DTO = ExperimentDTO(input_quantities=input_quantities,
+                            quantity_sequences=quantity_sequences,
+                            output_quantities=output_quantities,
+                            quantitiy_managers=quantitiy_managers,
+                            delay_time=self.delay_time.value(),
+                            comments=self.comment_box.toPlainText())
+        return DTO
+
+####################################################################
+# Data Transfer Object Class
+####################################################################
+
+class ExperimentDTO:
+    def __init__(self, input_quantities: list, quantity_sequences: dict, 
+                 output_quantities: list, quantitiy_managers: dict,
+                 delay_time: float, comments: str):
+        self._input_quantities = input_quantities
+        self._quantity_sequences = quantity_sequences
+        self._output_quantities = output_quantities
+        self._quantitiy_managers = quantitiy_managers
+        self._delay_time = delay_time
+        self._comments = comments
+
+    @property
+    def input_quantities(self):
+        return self._input_quantities
+    
+    @property
+    def quantity_sequences(self):
+        return self._quantity_sequences
+    
+    @property
+    def output_quantities(self):
+        return self._output_quantities
+    
+    @property
+    def quantitiy_managers(self):
+        return self._quantitiy_managers
+
+    @property
+    def delay_time(self):
+        return self._delay_time
+    
+    @property
+    def comments(self):
+        return self._comments

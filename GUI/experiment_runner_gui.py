@@ -11,6 +11,8 @@ from pymeasure.experiment import Procedure, Results
 from pymeasure.experiment import IntegerParameter, FloatParameter, Parameter
 from datetime import datetime
 
+from itertools import product
+import numpy as np
 ###################################################################################
 # StringParameter
 ###################################################################################
@@ -38,63 +40,107 @@ class StringParameter(Parameter):
 ###################################################################################
 # MainExperimentProcedure
 ###################################################################################
-class MainExperimentProcedure(Procedure):
-    steps = IntegerParameter('Steps', default=50000)
-    sigma = FloatParameter('Sigma', default=10.0)
-    beta = FloatParameter('Beta', default=3.0)
-    rho = FloatParameter('Rho', default=28.0)
-    comments = StringParameter('Comments', default='No comments')
+class MainExperimentProcedure(Procedure):   
+    input = [] # 2D list with (int, qty) to be changed at different levels
+    output = [] # list with (ins, qty) to measure
+    sequence = {} # Dictionary with key -> (ins, qty), value -> sequence details dict: start, stop, number_of_points, data_type
+    quantities = {} # Dictionary with key -> (ins, qty), value -> QuantitiyManager object
 
+    # The columns in the plotter
+    DATA_COLUMNS = ['step', 'dummy'] # TO FIX: Plotter Widget needs two columns to initialize
+    # Dynamically added column names
+    input_data_names = {}
+    output_data_names = {}
+
+    delay_time = 0 # delay time between each command
+
+    def set_parameters(self, DTO, logger):
+
+        self.set_logger(logger)
+        self.input = DTO.input_quantities
+        self.sequence = DTO.quantity_sequences
+        self.output = DTO.output_quantities
+        self.quantities = DTO.quantitiy_managers
+
+        self.delay_time = DTO.delay_time
+
+        for level in self.input:
+            for instrument_name, quantity_name in level:
+                input_name = "Input - " + str(instrument_name) + " - " + str(quantity_name)
+                if input_name not in self.DATA_COLUMNS:
+                    self.DATA_COLUMNS.append(input_name)
+                    self.input_data_names[(instrument_name, quantity_name)] = input_name
+        for instrument_name, quantity_name in self.output:
+            output_name = "Output - " + str(instrument_name) + " - " + str(quantity_name)
+            if output_name not in self.DATA_COLUMNS:
+                self.DATA_COLUMNS.append(output_name)
+                self.output_data_names[instrument_name, quantity_name] = output_name
+    
     def set_logger(self, logger: logging.Logger):
         self.logger = logger
 
-    #
-    # The columns in the plotter
-    #
-    DATA_COLUMNS = ['step', 'x', 'y', 'z']
-
     def startup(self):
         self.logger.info('startup() was called')
+        
+    def generate_sequence(self, seq: dict):
+        if seq['datatype'].upper() == 'DOUBLE':
+            return np.linspace(seq['start'], seq['stop'], seq['datapoints'])
+        else:
+            if seq['start'] != seq['stop']:
+                number_of_points = seq['datapoints']
+                return ([seq['start']] * (number_of_points // 2)) + ([seq['stop']] * (number_of_points - (number_of_points // 2)))
+            else:
+                return [seq['start']] * seq['datapoints']
 
-    # Sample Data Generation...
     def execute(self):
-        self.logger.info(f'Starting experiment loop of {self.steps} steps')
+        self.logger.info(f'Starting experiment')
 
-        x = 1.0
-        y = 1.0
-        z = 1.0
-        dx = 0
-        dy = 0
-        dz = 0
-        dt = 0.001
+        datapoints = 1 # number of datapoints
+        individual_sequences = []
+        for input_level in self.input:
+            sequences_in_level = []
+            for (ins, qty) in input_level:
+                sequence = self.generate_sequence(self.sequence[(ins, qty)])
+                sequences_in_level.append(sequence)
+                if len(sequence) == 0:
+                    # TODO: handle error
+                    pass
+            datapoints *= len(sequences_in_level[0])
+            """
+            converting [[1, 2, 3], ['a', 'b', 'c']] to [(1, 'a'), (2, 'b'), (3, 'c')]
+            """
+            sequences_in_order = list(zip(*sequences_in_level))
+            individual_sequences.append(sequences_in_order)        
+        
+        combined_sequences = product(*individual_sequences)
 
-        #
+        sleep_time = 0.001
+        step = 0
+
         # Main experiment LOOP
-        #
-        for i in range(int(self.steps)):
-
-            dx = self.sigma * (y - x)
-            dy = x * (self.rho - z) - y
-            dz = x * y - self.beta * z
-
-            x += dt * dx
-            y += dt * dy
-            z += dt * dz
-
+        for step_sequence in combined_sequences:
+            # step sequence is a list of tupules [(1 , 'a'), (True, )]
             # The datapoints we record at each "step":
-            data = {
-                'step': int(i),
-                'x': x,
-                'y': y,
-                'z': z
-            }
+            print(step_sequence)     
+            data = {}
+            for level in range(len(self.input)):
+                for index in range(len(self.input[level])):
+                    (ins, qty) = self.input[level][index]                
+                    self.quantities[(ins, qty)].set_value(step_sequence[level][index])
+                    data[self.input_data_names[(ins, qty)]] = step_sequence[level][index]
+                    sleep(self.delay_time)                
 
+            for (ins, qty) in self.output:
+                data[self.output_data_names[(ins, qty)]] = self.quantities[(ins, qty)].get_value()
+                sleep(self.delay_time)
+
+            data['step'] = step
+            self.logger.info("Data point recorded: ", data)
             self.emit('results', data)
             self.logger.debug(f'Emitting results: {data}')
-            self.emit('progress', 100 * i / self.steps)
+            self.emit('progress', 100 * step / datapoints)
 
-            # Intentional sleep to simulate "live plotting"
-            sleep(0.00001)
+            step += 1                
 
             if self.should_stop():
                 self.logger.warning("Caught the stop flag in the procedure")
@@ -108,21 +154,21 @@ class ExperimentRunner(ManagedWindow):
 
     def __init__(self, parent_gui, logger: logging.Logger, base_filename='experiment_results'):
         # Initialize the super class
+        
         super().__init__(procedure_class=MainExperimentProcedure,
-                         inputs=['steps', 'sigma', 'beta', 'rho', 'comments'],  # Inputs
-                         displays=['steps', 'sigma', 'beta', 'rho', 'comments'],  # Display GUI textboxes
-                         x_axis='x',
-                         y_axis='y',
+                         x_axis='step',
+                         y_axis='step',
                          directory_input=True)  # Enables directory input widget
+        # self.set_parameters(params)       
 
         # A reference to the invoking GUI
-        self.parent_gui = parent_gui
+        self.parent_gui = parent_gui      
 
         play_icon = QIcon("../Icons/playButton.png")
         self.setWindowIcon(play_icon)
 
         # The logger
-        self.logger = logger
+        self.logger = logger        
 
         self.base_filename = base_filename
         self.setWindowTitle('Experiment Runner')
@@ -141,6 +187,10 @@ class ExperimentRunner(ManagedWindow):
         self.main_layout.addWidget(quit_btn)
         self.main_layout.setAlignment(quit_btn, Qt.AlignmentFlag.AlignRight)
 
+    def set_parameters(self, parameters):
+        self.logger.info('Setting parameter values')
+        return super().set_parameters(parameters)
+
     def queue(self, procedure=None):
         self.logger.info('Starting measurement procedure')
 
@@ -148,9 +198,8 @@ class ExperimentRunner(ManagedWindow):
         filename = os.path.join(self.directory, self.generate_experiment_file_name(self.base_filename))
         self.logger.info(f'Writing results to file {filename}')
 
-        if procedure is None:
-            procedure = self.make_procedure()
-            procedure.set_logger(self.logger)
+        procedure = MainExperimentProcedure()
+        procedure.set_parameters(self.parent_gui.experiment_DTO, self.logger)
 
         results = Results(procedure, filename)
         experiment = self.new_experiment(results)
