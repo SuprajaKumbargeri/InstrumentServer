@@ -108,5 +108,5 @@ class LogChannelsTreeWidget(QTreeWidget):
         pass
 
     def get_log_table_quantities(self):
-        output = self.quantities_added.keys()
-        return list(output)
+        output_quantities = self.quantities_added.keys()
+        return list(output_quantities)

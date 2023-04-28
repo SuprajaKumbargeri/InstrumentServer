@@ -188,21 +188,22 @@ For single valued quantities, set 'start' and 'stop' to this value and change th
         return True
     
     def get_step_sequence_quantities(self):
-        input = []
-        sequence = {}
+        input_quantities = []
+        quantity_sequences = {}
         current_level = None        
         for i in range(self.topLevelItemCount()):
             tree_item = self.topLevelItem(i)
             ins, qty = tree_item.text(1), tree_item.text(2)
             if (ins, qty) in self.quantities_added.keys():
+                # sc is the sequence constructor object for the quantity
                 sc = self.quantities_added[(ins, qty)]
-                
+
                 level = sc.level
                 if current_level != level:
-                    input.append([(ins, qty)]) # create a new level of inputs
+                    input_quantities.append([(ins, qty)]) # create a new level of inputs
                     current_level = level
                 else:
-                    input[-1].append((ins, qty)) # append to the previous level of inputs
+                    input_quantities[-1].append((ins, qty)) # append to the previous level of inputs
                               
                 data_type =  sc.data_type
                 if sc.value_flag:
@@ -212,7 +213,7 @@ For single valued quantities, set 'start' and 'stop' to this value and change th
                     points = sc.number_of_points
                     start = sc.start_value
                     stop = sc.stop_value
-                sequence[(ins, qty)] = {'datapoints': points, 
+                quantity_sequences[(ins, qty)] = {'datapoints': points, 
                                         'start':start, 
                                         'stop':stop, 
                                         'datatype': data_type}
@@ -221,7 +222,7 @@ For single valued quantities, set 'start' and 'stop' to this value and change th
                 self.logger.error(f"{qty} of {ins} not found in Step Sequence table.")
                 break
             
-        return input, sequence
+        return input_quantities, quantity_sequences
 
             
 
