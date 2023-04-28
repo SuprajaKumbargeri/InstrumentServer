@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from DB import db
 from instrument_connection_service import InstrumentConnectionService, AlreadyConnectedError
+from InstrumentDetection.instrument_detection_service import InstrumentDetectionService
 from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
 from enum import Enum
@@ -56,6 +57,15 @@ class InstrumentServerWindow(QMainWindow):
         server_icon = QIcon("../Icons/servers.png")
         self.setWindowIcon(server_icon)
 
+        self.settings_icon = QIcon("../Icons/gear.png")
+        self.remove_icon = QIcon("../Icons/delete.png")
+        self.add_icon = QIcon("../Icons/add.png")
+        self.create_experiment_icon = QIcon("../Icons/edit.png")
+        self.connect_icon = QIcon("../Icons/connection.png")
+        self.connect_all_icon = QIcon("../Icons/connection_multiple.png")
+        self.close_icon = QIcon("../Icons/unlink.png")
+        self.close_all_icon = QIcon("../Icons/disconnect_all.png")
+
         self.construct_menu()
 
         self.construct_instrument_table_header()
@@ -86,7 +96,11 @@ class InstrumentServerWindow(QMainWindow):
         # Set the central widget
         self.setCentralWidget(self.main_widget)
 
+        # Instrument Connection Service
         self._ics = InstrumentConnectionService(self.get_logger())
+
+        # Instrument Detection Service
+        self._ids = InstrumentDetectionService(self.get_logger())
 
         self.get_known_instruments()
         
@@ -110,6 +124,11 @@ class InstrumentServerWindow(QMainWindow):
 
         edit_menu = menu.addMenu("&Edit")
 
+        tools_menu = menu.addMenu("&Tools")
+        detect_visa_resources_action = QAction("&Detect VISA Resources...", self)
+        detect_visa_resources_action.triggered.connect(self.detect_visa_resources_action)
+        tools_menu.addAction(detect_visa_resources_action)
+
         help_menu = menu.addMenu("&Help")
 
         about_action = QAction("&About", self)
@@ -125,18 +144,22 @@ class InstrumentServerWindow(QMainWindow):
         table_header_layout.setAlignment(instrument_status_lbl, Qt.AlignmentFlag.AlignLeft)
 
         connect_btn = QPushButton("Connect")
+        connect_btn.setIcon(self.connect_icon)
         connect_btn.clicked.connect(self.connect_btn_clicked)
         table_header_layout.addWidget(connect_btn)
 
         connect_all_btn = QPushButton("Connect All")
+        connect_all_btn.setIcon(self.connect_all_icon)
         connect_all_btn.clicked.connect(self.connect_all_btn_clicked)
         table_header_layout.addWidget(connect_all_btn)
 
         close_btn = QPushButton("Close")
+        close_btn.setIcon(self.close_icon)
         close_btn.clicked.connect(self.close_btn_clicked)
         table_header_layout.addWidget(close_btn)
 
         close_all_btn = QPushButton("Close All")
+        close_all_btn.setIcon(self.close_all_icon)
         close_all_btn.clicked.connect(self.close_all_btn_clicked)
         table_header_layout.addWidget(close_all_btn)
 
@@ -148,16 +171,17 @@ class InstrumentServerWindow(QMainWindow):
         bottom_button_layout = QHBoxLayout()
 
         add_btn = QPushButton("Add")
-        add_btn.setIcon(self.green_icon)
+        add_btn.setIcon(self.add_icon)
         add_btn.clicked.connect(self.add_btn_clicked)
         bottom_button_layout.addWidget(add_btn)
 
         remove_btn = QPushButton("Remove")
-        remove_btn.setIcon(self.red_icon)
+        remove_btn.setIcon(self.remove_icon)
         remove_btn.clicked.connect(self.remove_btn_clicked)
         bottom_button_layout.addWidget(remove_btn)
 
         settings_btn = QPushButton("Settings")
+        settings_btn.setIcon(self.settings_icon)
         settings_btn.clicked.connect(self.settings_btn_clicked)
         bottom_button_layout.addWidget(settings_btn)
 
@@ -173,6 +197,7 @@ class InstrumentServerWindow(QMainWindow):
         status_layout = QHBoxLayout()
 
         create_experiment_btn = QPushButton("Create Experiment")
+        create_experiment_btn.setIcon(self.create_experiment_icon)
         create_experiment_btn.clicked.connect(self.create_experiment_clicked)
         status_layout.setAlignment(create_experiment_btn, Qt.AlignmentFlag.AlignCenter)
         status_layout.addWidget(create_experiment_btn)
@@ -195,6 +220,13 @@ class InstrumentServerWindow(QMainWindow):
         msg = 'Instrument Server\nCSCI 5040 & CSCI 5050 Class Project\nVersion: 0.02'
 
         msgBox.setWindowTitle("About Instrument Server")
+        msgBox.setText(msg)
+        msgBox.exec()
+
+    def detect_visa_resources_action(self):
+        msgBox = QMessageBox(self)
+        msg = f'Detected the following VISA resources:\n\n{self._ids.detect_visa_resources()}\n'
+        msgBox.setWindowTitle("VISA Resource Detection")
         msgBox.setText(msg)
         msgBox.exec()
 

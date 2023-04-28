@@ -26,6 +26,8 @@ class InstrumentSettingsGUI(QWidget):
         self.logger = logger
         self.cute_name = cute_name
 
+        self.setWindowIcon(self.parent_gui.settings_icon)
+
         # Contains all the setting relevant to this instrument
         self.instrument_settings_dict = self._get_settings_for_instrument(self.cute_name)
 
