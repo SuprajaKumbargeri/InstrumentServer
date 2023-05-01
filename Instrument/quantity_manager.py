@@ -32,29 +32,27 @@ class QuantityManager:
         self._read_method = read_method
         self.str_true = str_true
         self.str_false = str_false
-
         self.is_visa = visa
+
+        self.linked_quantity_get = None
+        self.linked_quantity_set = None
 
     # region set_value methods
     def set_value(self, value):
-        if self.is_visa:
-            value = self.convert_value(value)
-
-            # add the value to the command and write to instrument
-            cmd = self.set_cmd
-            if "<*>" in cmd:
-                cmd = cmd.replace("<*>", str(value))
-            else:
-                cmd += f' {value}'
-
-            self._write_method(cmd)
-            self.latest_value = value
+        """Sets quantity value to <value>"""
+        value = self.convert_value(value)
+        # add the value to the command and write to instrument
+        cmd = self.set_cmd
+        if "<*>" in cmd:
+            cmd = cmd.replace("<*>", str(value))
         else:
-            value = self.convert_value(value)
-            self.latest_value = value
-            self.set_latest_value(self.latest_value)
+            cmd += f' {value}'
+
+        self._write_method(cmd)
+        self.latest_value = value
 
     def set_default_value(self):
+        
         self.set_value(self.default_value)
 
     def set_latest_value(self, value):
@@ -69,16 +67,15 @@ class QuantityManager:
 
     # region get_value methods
     def get_value(self):
-        if self.is_visa:
-            self._write_method(self.get_cmd)
-            value = self._read_method()
+        if self.linked_quantity_get:
+            return self.linked_quantity_get.get_value()
 
-            # update latest value
-            self.set_latest_value(value)
-            return self.convert_return_value(value)
-        else:
-            self.latest_value = self.get_latest_value()
-            return self.convert_return_value(self.latest_value)
+        self._write_method(self.get_cmd)
+        value = self._read_method()
+
+        # update latest value
+        self.set_latest_value(value)
+        return self.convert_return_value(value)
 
     def get_latest_value(self):
         # query server
@@ -161,6 +158,9 @@ class QuantityManager:
 
         else:
             return value
+
+    def link(self, method: Callable):
+        self.linked_method = method
 
     # region private helper methods
     def _check_limits(self, value):
