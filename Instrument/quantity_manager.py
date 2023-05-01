@@ -34,12 +34,16 @@ class QuantityManager:
         self.str_false = str_false
         self.is_visa = visa
 
-        self.linked_quantity_get = None
-        self.linked_quantity_set = None
+        self.linked_quantity_get: QuantityManager = None
+        self.linked_quantity_set: QuantityManager = None
 
     # region set_value methods
     def set_value(self, value):
         """Sets quantity value to <value>"""
+        if self.linked_quantity_set:
+            self.linked_quantity_set.set_latest_value(value)
+            return
+
         value = self.convert_value(value)
         # add the value to the command and write to instrument
         cmd = self.set_cmd
@@ -52,21 +56,32 @@ class QuantityManager:
         self.latest_value = value
 
     def set_default_value(self):
-        
+        """Sets quantity value to default value as defined in driver"""
+        if self.linked_quantity_set:
+            self.linked_quantity_set.set_default_value()
+            return
+
         self.set_value(self.default_value)
 
     def set_latest_value(self, value):
+        """Sets quantity's latest_value in database to <value>"""
+        if self.linked_quantity_set:
+            self.linked_quantity_set.set_latest_value(value)
+            return
+
         self.latest_value = value
 
         # send to server
         url = r'http://127.0.0.1:5000/instrumentDB/setLatestValue'
-        response = requests.put(url, params={'cute_name': self.instrument_name, 'label': self.name, 'latest_value': value})
+        response = requests.put(url, params={
+            'cute_name': self.instrument_name, 'label': self.name, 'latest_value': value})
         if response.status_code >= 300:
             response.raise_for_status()
     # endregion
 
     # region get_value methods
     def get_value(self):
+        """Returns quantity value in user form"""
         if self.linked_quantity_get:
             return self.linked_quantity_get.get_value()
 
@@ -78,6 +93,10 @@ class QuantityManager:
         return self.convert_return_value(value)
 
     def get_latest_value(self):
+        """Returns quantity latest_value in database in user form"""
+        if self.linked_quantity_get:
+            return self.linked_quantity_get.get_latest_value()
+
         # query server
         url = r'http://127.0.0.1:5000/instrumentDB/getLatestValue'
         response = requests.get(url, params={'cute_name': self.instrument_name, 'label': self.name})
@@ -154,13 +173,34 @@ class QuantityManager:
                     return key
 
             raise ValueError(
-                f"{self.name} returned an invalid value for {self.name}. {value} is not a valid combo value. Please check instrument driver.")
+                f"{self.name} returned an invalid value for {self.name}. "
+                f"{value} is not a valid combo value. Please check instrument driver.")
 
         else:
             return value
 
-    def link(self, method: Callable):
-        self.linked_method = method
+    def link(self, link_to_quantity: QuantityManager, link_get: bool, link_set: bool):
+        """Links to another QuantityManager. If linked, can use the linked QuantityManager to get or set value.
+                Parameters:
+                    link_to_quantity -- QuantityManager to link to
+                    link_get -- if True, links QuantityManager for any get methods
+                    link_set -- if True, links QuantityManager for any set methods
+            """
+        if link_get:
+            self.linked_quantity_get = link_to_quantity
+        if link_set:
+            self.linked_quantity_set = link_to_quantity
+
+    def unlink(self, unlink_get: bool, unlink_set: bool):
+        """Links to another QuantityManager. If linked, can use the linked QuantityManager to get or set value.
+                Parameters:
+                    unlink_get -- if True, unlinks QuantityManager for any get methods
+                    unlink_set -- if True, unlinks QuantityManager for any set methods
+            """
+        if unlink_get:
+            self.linked_quantity_get = None
+        if unlink_set:
+            self.linked_quantity_set = None
 
     # region private helper methods
     def _check_limits(self, value):
@@ -186,7 +226,8 @@ class QuantityManager:
                 valid_cmds = list(self.combo_cmd.values())
             else:
                 raise ValueError(
-                    f"Quantity {self.name} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
+                    f"Quantity {self.name} of type 'COMBO' has no associated states or commands. "
+                    f"Please update the driver and reupload to the Instrument Server.")
 
             if value not in valid_states and value not in valid_cmds:
                 raise ValueError(
