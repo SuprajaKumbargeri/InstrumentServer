@@ -127,7 +127,10 @@ class InstrumentConnectionService:
             driver_path = response_dict["general_settings"]["driver_path"]
             if os.path.exists(driver_path):
                 self._my_logger.info(f"Custom module file {driver_path} exists.")
+            print("PLEASE WORK----------------------------")
+            print(driver_path)
             module_name = driver_path.split(os.sep)[-1].replace(".py", "")
+            print(module_name)
             module_location = os.sep.join(driver_path.split(os.sep)[:-1])
             sys.path.append(module_location)
             custom_driver = importlib.import_module(module_name)

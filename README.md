@@ -43,3 +43,17 @@ Default schema: `public` <br>
 <a href="https://www.flaticon.com/free-icons/play-button" title="play button icons">Play button icons created by Roundicons - Flaticon</a>
 <br>
 <a href="https://www.flaticon.com/free-icons/lab" title="lab icons">Lab icons created by surang - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/gear" title="gear icons">Gear icons created by Freepik - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/cancel" title="cancel icons">Cancel icons created by Freepik - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/plus" title="plus icons">Plus icons created by dmitri13 - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/create" title="create icons">Create icons created by Arkinasi - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/ui" title="ui icons">Ui icons created by icon wind - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/connect" title="connect icons">Connect icons created by Dreamstale - Flaticon</a>
+<br>
+<a href="https://www.flaticon.com/free-icons/disconnected" title="disconnected icons">Disconnected icons created by Alfian Dwi Hartanto - Flaticon</a>

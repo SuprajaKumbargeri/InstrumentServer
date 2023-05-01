@@ -68,7 +68,7 @@ class FlaskInstrumentServer:
         # Delegate Instrument detection to a separate thread
         detect_inst_thread = None
         if not self._dev_mode:
-            detect_inst_thread = threading.Thread(target=instrument_detection_service.detectInstruments())
+            detect_inst_thread = threading.Thread(target=instrument_detection_service.detect_and_log_instruments())
             detect_inst_thread.start()
 
         # Configure PostgreSQL instance to start and stop with the Instrument Server
