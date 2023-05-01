@@ -57,6 +57,12 @@ class ExperimentWindowGui(QMainWindow):
     def get_instrument_manager(self, cute_name):
         """Get the instrument manager object from instrument connection service"""
         return self._ics.get_instrument_manager(cute_name)
+    
+    def remove_experiment_quantities(self, instrument_name):
+        """Removes all quantities from an instrument that are added to the Step Sequence and Log Channels tables"""
+        self.step_sequence_table.remove_channel(instrument_name)
+        self.log_channels_table.remove_channel(instrument_name)
+        return
 
     ####################################################################
     # Channel table related implementation
@@ -71,6 +77,7 @@ class ExperimentWindowGui(QMainWindow):
         # Set the layout for main widget    
         channels_section_main_layout = QVBoxLayout()
 
+<<<<<<< Updated upstream
         self.channels_table = ChannelsTreeWidget(self._working_instruments, self.my_logger)
 
         # Placeholder - to be removed
@@ -81,6 +88,9 @@ class ExperimentWindowGui(QMainWindow):
         QTreeWidgetItem(root_example, ['Mode', '', 'Normal'])
         QTreeWidgetItem(root_example, ['Output', '', 'Off'])
         root_example.setExpanded(True)
+=======
+        self.channels_table = ChannelsTreeWidget(self, self._working_instruments, self.my_logger)
+>>>>>>> Stashed changes
         channels_section_main_layout.addWidget(self.channels_table)
 
         # The section on the bottom that has buttons
@@ -127,8 +137,7 @@ class ExperimentWindowGui(QMainWindow):
         """
         instrument_name = self.channels_table.remove_channel() # returns the deleted instrument's name
         if instrument_name:
-            self.step_sequence_table.remove_channel(instrument_name)
-            self.log_channels_table.remove_channel(instrument_name)
+            self.remove_experiment_quantities(instrument_name)
         return
 
     def edit_channel_quantity(self):

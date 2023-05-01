@@ -7,8 +7,10 @@ import json
 # from Instrument.instrument_manager import InstrumentManager
 
 class ChannelsTreeWidget(QTreeWidget):
-    def __init__(self, channels_added: dict(), logger: logging.Logger):
+    def __init__(self, parent_gui, channels_added: dict(), logger: logging.Logger):
         super().__init__()
+
+        self._parent_gui = parent_gui
         self.logger = logger
         # dictionary for added channels in the table
         self.channels_added = channels_added
@@ -44,7 +46,7 @@ class ChannelsTreeWidget(QTreeWidget):
         if cute_name not in self.channels_added:
             self.channels_added[cute_name] = im
             self.quantities_added[cute_name] = {}
-            parent = QTreeWidgetItem([cute_name, model, '', address])
+            self.parent = QTreeWidgetItem([cute_name, model, '', address])
             for quantity in im.quantities.values():
                 quantity_name = quantity.name
                 value = self.get_value(quantity)
@@ -56,26 +58,18 @@ class ChannelsTreeWidget(QTreeWidget):
                 
                 if quantity.unit and value:
                     unit = quantity.unit
-                quantity_widget = QTreeWidgetItem(parent, [quantity_name,'', str(value) + unit])
+                quantity_widget = QTreeWidgetItem(self.parent, [quantity_name,'', str(value) + unit])
                 self.quantities_added[cute_name][quantity_name] = quantity_widget
-                # TODO: Handle visibility
-                # Stratch work -- REMOVE
-                # quantity_widget.setHidden(quantity.is_visible)
-                
-                #value = str(self.convert_value(quantity))
-                #if self.quantity.latest_value:
-                #    self.handle_incoming_value(float(self.quantity.latest_value))
-                #else:
-                #    self.handle_incoming_value(float(self.quantity.default_value))
-                #value = str(self.get_value(quantity))                
 
-            self.addTopLevelItem(parent)
-            parent.setExpanded(True)
+                quantity_widget.setHidden(quantity.is_visible)
+
+            self.addTopLevelItem(self.parent)
+            self.parent.setExpanded(True)
 
     def get_value(self, quantity):
         try:
             value = quantity.get_value()
-            self.handle_incoming_value(value)
+            self._handle_quant_value_change(quantity.name, value)
             return value
         except Exception as e:
             self.logger.error(f"Error querying '{quantity.name}': {e}")
@@ -122,32 +116,28 @@ class ChannelsTreeWidget(QTreeWidget):
                 unit = quantity.unit
 
             selected_item.setText(2, str(value) + unit)
-            # TODO: Remove
-            '''
-            quantity_info = im.get_quantity_info(quantity)
-            if quantity_info['latest_value']:
-                value = str(quantity_info['latest_value'])
-            else:
-                value = str(quantity_info['def_value'])
-            if quantity_info['unit']:
-                value += "" + quantity_info['unit']
-            selected_item.setText(2, value)
-            '''
     
     def _handle_quant_value_change(self, quantity_changed, new_value):
         """Called by QuantityFrame when the quantity's value is changed.
         Sets visibility of other quantities depending on new value"""
-        # TODO: Check for problems
-        return
-        selected_item = self.currentItem()
-        cute_name = selected_item.parent().text(0) 
+        if self.currentItem():
+            selected_item = self.currentItem()
+            cute_name = selected_item.parent().text(0)
+        else:
+            cute_name = self.parent.text(0)
         _im = self.channels_added[cute_name]
         _im.update_visibility(quantity_changed, new_value)
         quantity_widgets = self.quantities_added[cute_name]
 
         for quantity_name, quantity in _im.quantities.items():
-            quantity_widget = quantity_widgets[quantity_name]
-            quantity_widget.setHidden(quantity.is_visible)       
+            if quantity_name in quantity_widgets.keys():
+                quantity_widget = quantity_widgets[quantity_name]
+                quantity_widget.setHidden(not quantity.is_visible)
+
+            # Remove all quantities related to this instrument from the Step Sequence and Log Channels tables after a value change in the Channels Table
+            # This is to avoid having non-visible quantities being present in the Step Sequence and Log Channels table
+            self._parent_gui.remove_experiment_quantities(cute_name)
+
 
     def channels_table_selection_changed(self):
         selected_item = self.currentItem()
