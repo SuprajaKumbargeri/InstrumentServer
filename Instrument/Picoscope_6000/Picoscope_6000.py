@@ -7,6 +7,14 @@ import time
 import matplotlib.pyplot as plt
 
 
+class PicoscopeQuantityManager(QuantityManager):
+    def set_value(self, value):
+        self.set_latest_value(self.convert_value(value))
+
+    def get_value(self):
+        return self.get_latest_value()
+
+
 class Picoscope_6000(InstrumentManager):
     """ This class implements the picoscope"""
 
@@ -29,9 +37,9 @@ class Picoscope_6000(InstrumentManager):
         str_false = self._driver['visa']['str_false']
 
         for name, info in self._driver['quantities'].items():
-            self.quantities[name] = QuantityManager(info, self.write, self.read, str_true, str_false, self._logger, False)
+            self.quantities[name] = PicoscopeQuantityManager(info, self.write, self.read, str_true, str_false, self._logger)
 
-    def write(self, msg):
+    def write(self, value):
         pass
 
     def read(self):
