@@ -5,10 +5,9 @@
 import platform
 import logging
 import datetime
-import sys
+from http import HTTPStatus
 
 from flask import (Blueprint, jsonify)
-from werkzeug.exceptions import abort
 
 '''
 Create 'serverStatus' Blueprint
@@ -21,25 +20,25 @@ def set_Logger(logger: logging.Logger):
     my_logger = logger
 
 
-@bp.route('/healthCheck')
+@bp.route('/isRunning')
 def health_check():
-    my_logger.debug("/healthCheck was hit!")
-    return jsonify("Instument Server is running!"), 200
+    my_logger.debug("/isRunning was hit!")
+    return jsonify("Instrument Server is running!"), HTTPStatus.OK
 
 
 @bp.route('/')
 def index():
     my_logger.debug("/serverStatus was hit!")
-    return jsonify("This is the /status endpoint"), 200
+    return jsonify("This is the /serverStatus endpoint"), HTTPStatus.OK
 
 
 @bp.route('/getOsPlatform')
 def get_Os_Platform():
     my_logger.debug("/getOsPlatform was hit!")
-    return jsonify(platform.system()), 200
+    return jsonify(platform.system()), HTTPStatus.OK
 
 
 @bp.route('/getServerUTCTime')
 def get_server_utc_time():
     my_logger.debug("/getServerUTCTime was hit!")
-    return jsonify(datetime.datetime.utcnow()), 200
+    return jsonify(datetime.datetime.utcnow()), HTTPStatus.OK

@@ -199,7 +199,7 @@ class InstrumentSettingsGUI(QWidget):
                                           'ini_path',
                                           'cute_name',
                                           self.cute_name)
-        main_settings_frames.append(FileDialogSettingFrame(driver_path_dto, self.logger))
+        main_settings_frames.append(FileDialogSettingFrame(driver_path_dto, self.logger, self))
 
         is_serial_dto = SettingFrameDTO('Serial Instrument',
                                         instrument_interface_dict['serial'],
@@ -242,7 +242,7 @@ class InstrumentSettingsGUI(QWidget):
                     general_settings_frames.append(ComboBoxSettingFrame(frame_dto, INTERFACES, self.logger))
 
                 case 'ini_path':
-                    general_settings_frames.append(FileDialogSettingFrame(frame_dto, self.logger))
+                    general_settings_frames.append(FileDialogSettingFrame(frame_dto, self.logger, self))
 
                 case 'address':
                     frame_dto.label = 'Address (Pre-defined)'
@@ -287,7 +287,7 @@ class InstrumentSettingsGUI(QWidget):
                     visa_settings_frames.append(IntegerSettingFrame(frame_dto, 0, 3600, self.logger))
 
                 case 'ini_path':
-                    visa_settings_frames.append(FileDialogSettingFrame(frame_dto, self.logger))
+                    visa_settings_frames.append(FileDialogSettingFrame(frame_dto, self.logger, self))
 
                 case 'term_char':
                     frame_dto.label = 'Termination Character(s)'
@@ -385,6 +385,45 @@ class InstrumentSettingsGUI(QWidget):
                 finally:
                     # Make sure we always close the connection
                     db.close_db(connection)
+
+    def remove_and_add_instrument(self, cute_name, new_ini_file_location):
+        """Removes and then re-adds instrument (if ini file is updated)"""
+
+        prev_instrument_details = dict()
+        try:
+            url = r'http://127.0.0.1:5000/instrumentDB/getInstrumentSettings'
+            response = requests.get(url, params={'cute_name': cute_name})
+            prev_instrument_details = dict(response.json())
+
+        except Exception as ex:
+            QMessageBox.critical(self, 'ERROR', f'Could not retrieve settings for instrument {cute_name}: {ex}')
+            return
+
+        new_details = {"cute_name": prev_instrument_details['instrument_interface']['cute_name'],
+                       "interface": prev_instrument_details['instrument_interface']['interface'],
+                       "address": prev_instrument_details['instrument_interface']['address'],
+                       "baud_rate": prev_instrument_details['visa']['baud_rate'],
+                       "serial": str(prev_instrument_details['instrument_interface']['serial']),
+                       "visa": str(prev_instrument_details['instrument_interface']['visa']),
+                       "path": str(new_ini_file_location)}
+
+        # Disconnect instrument (if connected)
+        self.parent_gui._ics.disconnect_instrument(cute_name)
+
+        # Remove the instrument
+        self.parent_gui._ics.remove_instrument_from_database(cute_name)
+
+        # Add instrument again
+        connect_result, msg = self.parent_gui._ics.add_instrument_to_database(new_details)
+
+        if not connect_result: msg = "Failed. " + msg
+        msgBox = QMessageBox(self)
+        msgBox.setWindowTitle("Status")
+        msgBox.setText(msg)
+        msgBox.exec()
+
+        # Exit & Refresh the instrument list
+        self._exit_gui()
 
     def _exit_gui(self):
         """
