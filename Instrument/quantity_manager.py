@@ -3,7 +3,7 @@ import requests
 
 
 class QuantityManager:
-    def __init__(self, quantity_info: dict, write_method: Callable, read_method: Callable, str_true, str_false, logger=None, visa=True):
+    def __init__(self, quantity_info: dict, write_method: Callable, read_method: Callable, str_true, str_false, logger=None):
         self.instrument_name = quantity_info['cute_name']
         self.name = quantity_info['label']
         self.data_type = quantity_info['data_type'].upper()
@@ -23,8 +23,8 @@ class QuantityManager:
         self.option_values = quantity_info['option_values']
         self.permission = quantity_info['permission']
         self.show_in_measurement_dlg = quantity_info['show_in_measurement_dlg']
-        self.set_cmd = quantity_info['set_cmd']
-        self.get_cmd = quantity_info['get_cmd']
+        self.set_cmd = str(quantity_info['set_cmd'])
+        self.get_cmd = str(quantity_info['get_cmd'])
         self.latest_value = quantity_info['latest_value']
         self.is_visible = True
 
@@ -32,8 +32,6 @@ class QuantityManager:
         self._read_method = read_method
         self.str_true = str_true
         self.str_false = str_false
-        self.is_visa = visa
-
         self.linked_quantity_get: QuantityManager = None
         self.linked_quantity_set: QuantityManager = None
 
@@ -43,6 +41,16 @@ class QuantityManager:
         if self.linked_quantity_set:
             self.linked_quantity_set.set_latest_value(value)
             return
+        
+        value = self.convert_value(value)
+
+        # add the value to the command and write to instrument
+        cmd = self.set_cmd
+        if "<*>" in cmd:
+            cmd = cmd.replace("<*>", str(value))
+        else:
+            cmd += f' {value}'
+
 
         value = self.convert_value(value)
         # add the value to the command and write to instrument
