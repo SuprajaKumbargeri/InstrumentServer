@@ -1,6 +1,9 @@
 import sys
+from http import HTTPStatus
+
 import requests
 import logging
+import threading
 from PyQt6.QtCore import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
@@ -103,9 +106,13 @@ class InstrumentServerWindow(QMainWindow):
         self._ids = InstrumentDetectionService(self.get_logger())
 
         self.get_known_instruments()
-        
+
         # Setup Additional GUI
         self.experiment_window_gui = ExperimentWindowGui(self, self._ics, self.my_logger)
+
+        # Delegates instrument status check to a separate thread
+        is_running_th = threading.Thread(target=self.check_instrument_status, daemon=True)
+        is_running_th.start()
 
         self.my_logger.info('Done initializing Instrument Server GUI')
 
@@ -202,12 +209,19 @@ class InstrumentServerWindow(QMainWindow):
         status_layout.setAlignment(create_experiment_btn, Qt.AlignmentFlag.AlignCenter)
         status_layout.addWidget(create_experiment_btn)
 
-        instrument_server_status_lbl = QLabel("Instrument Server Is Running")
-        status_layout.addWidget(instrument_server_status_lbl)
-        status_layout.setAlignment(instrument_server_status_lbl, Qt.AlignmentFlag.AlignRight)
+        self.instrument_server_status_lbl = QLabel("Instrument Server Is Running")
+        self.instrument_server_status_lbl.setStyleSheet("font-weight: bold")
+        status_layout.addWidget(self.instrument_server_status_lbl)
+        status_layout.setAlignment(self.instrument_server_status_lbl, Qt.AlignmentFlag.AlignRight)
 
         status_widget.setLayout(status_layout)
         self.main_layout.addWidget(status_widget)
+
+    def set_instrument_server_running_lbl(self):
+        self.instrument_server_status_lbl.setText("Instrument Server Is Running")
+
+    def set_instrument_server_not_responding_lbl(self):
+        self.instrument_server_status_lbl.setText("Instrument Server Not Responding")
 
     # Defines exit behavior
     def exit_gui(self):
@@ -427,6 +441,27 @@ class InstrumentServerWindow(QMainWindow):
         """
         self.get_logger().debug('Clearing Instrument List...')
         self.instrument_tree.clear()
+
+    def check_instrument_status(self):
+        """Checks the status of Instrument Server every 5 minutes"""
+
+        threading.Timer(300, self.check_instrument_status).start()
+        self.get_logger().info("Checking Instrument Server Status...")
+
+        response = HTTPStatus.OK
+        try:
+            url = r'http://127.0.0.1:5000/serverStatus/isRunning'
+            response = requests.get(url)
+
+        except Exception as ex:
+            self.get_logger().critical('Could not check if Instrument Server is running!')
+            response = HTTPStatus.NOT_FOUND
+
+        if response.status_code == HTTPStatus.OK:
+            self.set_instrument_server_running_lbl()
+        else:
+            self.set_instrument_server_not_responding_lbl()
+            self.get_logger().critical("Instrument Server is not responding!")
 
     def get_known_instruments(self):
         self.clear_instrument_list()

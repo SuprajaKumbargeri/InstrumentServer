@@ -3,7 +3,7 @@ from PyQt6.QtGui import QFont, QAction, QCursor
 import logging
 
 from PyQt6.QtWidgets import QLineEdit, QComboBox, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QGroupBox, QFileDialog, \
-    QSizePolicy, QHeaderView
+    QSizePolicy, QHeaderView, QMessageBox
 
 
 ###################################################################################
@@ -173,10 +173,12 @@ class TwoRadioButtonSettingFrame(SettingFrame):
 
 
 class FileDialogSettingFrame(SettingFrame):
-    def __init__(self, frame_dto: SettingFrameDTO, logger: logging.Logger):
+    def __init__(self, frame_dto: SettingFrameDTO, logger: logging.Logger, settings_gui):
         super().__init__(frame_dto, logger)
 
         # Box 1 for driver file input
+        self.frame_dto = frame_dto
+        self.settings_gui = settings_gui
         self.path_line = QLineEdit()
         self.path_line.setText(frame_dto.value)
         self.file_button = QPushButton("Select File")
@@ -199,7 +201,13 @@ class FileDialogSettingFrame(SettingFrame):
                                                 initialFilter=initial_filter)
 
         if file_name[0]:
-            self.path_line.setText(file_name[0])
+            # Ask if user is fine with re-adding the instrument (need to update everything)
+            answer = QMessageBox.question(self, "Instrument Settings",
+                                          "Changing Instrument (.ini) file will re-add the instrument. Are you sure you"
+                                          "want to proceed?")
+            if answer == QMessageBox.StandardButton.Yes:
+                self.path_line.setText(file_name[0])
+                self.settings_gui.remove_and_add_instrument(self.frame_dto.unique_key_value, file_name[0])
 
     def get_gui_value(self):
         return self.path_line.text()
