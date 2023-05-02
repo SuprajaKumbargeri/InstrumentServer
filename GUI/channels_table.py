@@ -40,9 +40,12 @@ class ChannelsTreeWidget(QTreeWidget):
         # when user right clicks, this pops up
         self.edit_action = QAction('Edit value')
         self.link_action = QAction('Link quantity')
+        self.unlink_action = QAction('Unlink quantity')
         self.menu = QMenu()
         self.menu.addAction(self.edit_action)
+        self.menu.addSeparator()
         self.menu.addAction(self.link_action)
+        self.menu.addAction(self.unlink_action)
 
         self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.custom_context_menu_event)
@@ -120,6 +123,8 @@ class ChannelsTreeWidget(QTreeWidget):
             self.show_quantity_frame_gui(self.currentItem())
         elif action == self.link_action:
             self.show_link_frame_gui(self.currentItem())
+        elif action == self.unlink_action:
+            self.unlink_quantity(self.currentItem())
     
     def show_quantity_frame_gui(self, selected_item, column=None):   
         parent_item = selected_item.parent()
@@ -186,6 +191,16 @@ class ChannelsTreeWidget(QTreeWidget):
         except Exception as e:
             print(e)
 
+    def unlink_quantity(self, selected_item):
+        parent_item = selected_item.parent()
+        if parent_item is None:
+            return
+
+        im = self.channels_added[parent_item.text(0)]
+        quantity = im.quantities[selected_item.text(0)]
+
+        quantity.linked_quantity_set = None
+        quantity.linked_quantity_get = None
 
     def channels_table_selection_changed(self):
         selected_item = self.currentItem()
@@ -296,8 +311,12 @@ class LinkQuantityDialog(QDialog):
 
         if self.link_frame.link_set:
             self.quantity.linked_quantity_set = self.link_frame.linked_quantity
+        else:
+            self.quantity.linked_quantity_set = None
         if self.link_frame.link_get:
             self.quantity.linked_quantity_get = self.link_frame.linked_quantity
+        else:
+            self.quantity.linked_quantity_get = None
 
         self.close()
 

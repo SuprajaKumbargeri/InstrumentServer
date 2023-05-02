@@ -294,21 +294,16 @@ class LinkQuantityFrame(QtW.QFrame):
         h1_layout = QtW.QHBoxLayout()
         h2_layout = QtW.QHBoxLayout()
 
-        items = ["None"]
-        items += list(instruments.keys())
-
         self.instrument_combo = QtW.QComboBox()
-        self.instrument_combo.addItems(items)
-        self.instrument_combo.currentIndexChanged.connect(self.on_instrument_change)
-
         self.quantity_combo = QtW.QComboBox()
-        self.quantity_combo.addItem("None")
 
         h1_layout.addWidget(self.instrument_combo)
         h1_layout.addWidget(self.quantity_combo)
 
         self.link_set_checkbox = QtW.QCheckBox("Link for writes")
         self.link_get_checkbox = QtW.QCheckBox("Link for reads")
+
+        self.initialize_widgets()
 
         h2_layout.addWidget(self.link_set_checkbox)
         h2_layout.addWidget(self.link_get_checkbox)
@@ -320,6 +315,30 @@ class LinkQuantityFrame(QtW.QFrame):
         layout.addWidget(widget2)
         self.setLayout(layout)
 
+    def initialize_widgets(self):
+        items = ["None"]
+        items += list(self.connected_instruments.keys())
+        self.instrument_combo.addItems(items)
+        self.instrument_combo.currentTextChanged.connect(self.on_instrument_change)
+
+        self.quantity_combo.addItem("None")
+
+        # linked_wuant could be set twice, but will always be same quantity
+        linked_quant = None
+        # Set checkboxes to True if quantity is linked to read/write
+        if self.quantity_manager.linked_quantity_set:
+            linked_quant = self.quantity_manager.linked_quantity_set
+            self.link_set_checkbox.setChecked(True)
+        if self.quantity_manager.linked_quantity_get:
+            linked_quant = self.quantity_manager.linked_quantity_get
+            self.link_get_checkbox.setChecked(True)
+
+        if linked_quant:
+            # set instrument combo index to instrument of linked quantity
+            self.instrument_combo.setCurrentText(linked_quant.instrument_name)
+            # set quantity combo index to linked quantity
+            self.quantity_combo.setCurrentText(linked_quant.name)
+
     def on_instrument_change(self):
         # clear all data from quantity combo
         self.quantity_combo.clear()
@@ -329,7 +348,14 @@ class LinkQuantityFrame(QtW.QFrame):
         if selected_instrument is None:
             return
 
-        self.quantity_combo.addItems(list(selected_instrument.quantities.keys()))
+        # Names of all visible quantities
+        quantities = list(x.name for x in selected_instrument.get_visible_quantities())
+
+        # This stops cyclical linking
+        if selected_instrument.name == self.quantity_manager.instrument_name:
+            quantities.remove(self.quantity_manager.name)
+
+        self.quantity_combo.addItems(quantities)
 
     @property
     def selected_instrument(self) -> Optional[InstrumentManager]:

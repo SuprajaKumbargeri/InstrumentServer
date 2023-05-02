@@ -197,9 +197,9 @@ class InstrumentManager:
         """
         self._instrument.delay = value
 
-    def get_visible_quantities(self):
+    def get_visible_quantities(self) -> list[QuantityManager]:
         """Returns a list of all visible quantities"""
-        return [quantity for quantity in self.quantities if quantity.is_visible]
+        return [quantity for quantity in self.quantities.values() if quantity.is_visible]
 
     def link_quantity(self, quantity: str, link_to: QuantityManager, link_set: bool, link_get: bool):
         """"""
