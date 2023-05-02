@@ -1,9 +1,10 @@
 from PyQt6 import QtCore, QtWidgets as QtW
 from PyQt6.QtGui import QFont, QAction, QCursor
-from typing import Callable
+from typing import Callable, Optional
 import logging
 
 from Instrument.quantity_manager import QuantityManager
+from Instrument.instrument_manager import InstrumentManager
 
 
 class QuantityFrame(QtW.QFrame):
@@ -280,3 +281,74 @@ class QuantityGroupBox(QtW.QGroupBox):
             self.layout.addWidget(frame)
 
         self.setLayout(self.layout)
+
+
+class LinkQuantityFrame(QtW.QFrame):
+    def __init__(self, quantity: QuantityManager, instruments: dict[str: InstrumentManager]):
+        super().__init__()
+
+        self.quantity_manager = quantity
+        self.connected_instruments = instruments
+
+        layout = QtW.QVBoxLayout()
+        h1_layout = QtW.QHBoxLayout()
+        h2_layout = QtW.QHBoxLayout()
+
+        items = ["None"]
+        items += list(instruments.keys())
+
+        self.instrument_combo = QtW.QComboBox()
+        self.instrument_combo.addItems(items)
+        self.instrument_combo.currentIndexChanged.connect(self.on_instrument_change)
+
+        self.quantity_combo = QtW.QComboBox()
+        self.quantity_combo.addItem("None")
+
+        h1_layout.addWidget(self.instrument_combo)
+        h1_layout.addWidget(self.quantity_combo)
+
+        self.link_set_checkbox = QtW.QCheckBox("Link for writes")
+        self.link_get_checkbox = QtW.QCheckBox("Link for reads")
+
+        h2_layout.addWidget(self.link_set_checkbox)
+        h2_layout.addWidget(self.link_get_checkbox)
+        widget1 = QtW.QWidget()
+        widget2 = QtW.QWidget()
+        widget1.setLayout(h1_layout)
+        widget2.setLayout(h2_layout)
+        layout.addWidget(widget1)
+        layout.addWidget(widget2)
+        self.setLayout(layout)
+
+    def on_instrument_change(self):
+        # clear all data from quantity combo
+        self.quantity_combo.clear()
+        self.quantity_combo.addItem("None")
+        selected_instrument = self.selected_instrument
+
+        if selected_instrument is None:
+            return
+
+        self.quantity_combo.addItems(list(selected_instrument.quantities.keys()))
+
+    @property
+    def selected_instrument(self) -> Optional[InstrumentManager]:
+        if self.instrument_combo.currentText() == "None":
+            return None
+        return self.connected_instruments[self.instrument_combo.currentText()]
+
+    @property
+    def linked_quantity(self) -> Optional[QuantityManager]:
+        selected_instrument = self.selected_instrument
+        if selected_instrument is None or self.quantity_combo.currentText() == "None":
+            return None
+
+        return selected_instrument.quantities[self.quantity_combo.currentText()]
+
+    @property
+    def link_set(self):
+        return self.link_set_checkbox.isChecked()
+
+    @property
+    def link_get(self):
+        return self.link_get_checkbox.isChecked()

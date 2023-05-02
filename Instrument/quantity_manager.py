@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Callable
 import requests
 
@@ -32,6 +33,8 @@ class QuantityManager:
         self._read_method = read_method
         self.str_true = str_true
         self.str_false = str_false
+
+        # If quantity is linked to another, when get/set are called, it calls the corresponding linked quantity instead
         self.linked_quantity_get: QuantityManager = None
         self.linked_quantity_set: QuantityManager = None
 
@@ -186,29 +189,6 @@ class QuantityManager:
 
         else:
             return value
-
-    def link(self, link_to_quantity: QuantityManager, link_get: bool, link_set: bool):
-        """Links to another QuantityManager. If linked, can use the linked QuantityManager to get or set value.
-                Parameters:
-                    link_to_quantity -- QuantityManager to link to
-                    link_get -- if True, links QuantityManager for any get methods
-                    link_set -- if True, links QuantityManager for any set methods
-            """
-        if link_get:
-            self.linked_quantity_get = link_to_quantity
-        if link_set:
-            self.linked_quantity_set = link_to_quantity
-
-    def unlink(self, unlink_get: bool, unlink_set: bool):
-        """Links to another QuantityManager. If linked, can use the linked QuantityManager to get or set value.
-                Parameters:
-                    unlink_get -- if True, unlinks QuantityManager for any get methods
-                    unlink_set -- if True, unlinks QuantityManager for any set methods
-            """
-        if unlink_get:
-            self.linked_quantity_get = None
-        if unlink_set:
-            self.linked_quantity_set = None
 
     # region private helper methods
     def _check_limits(self, value):
