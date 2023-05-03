@@ -42,7 +42,7 @@ def addInstrument():
                 ids.update_visa_baud_rate(connection, cute_name, details['baud_rate'])
 
             db.close_db(connection)
-            return jsonify("Instrument added."), HTTPStatus.OK
+            return jsonify(f"Instrument: \"{details['cute_name']}\" was (re)added!"), HTTPStatus.OK
         else:
             raise FileNotFoundError
         
