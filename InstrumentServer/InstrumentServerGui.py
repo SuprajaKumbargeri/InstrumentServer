@@ -100,17 +100,17 @@ class InstrumentServerWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         # Instrument Connection Service
-        self._ics = InstrumentConnectionService(self.get_logger())
+        self._ics = InstrumentConnectionService(self.my_logger)
 
         # Instrument Detection Service
-        self._ids = InstrumentDetectionService(self.get_logger())
+        self._ids = InstrumentDetectionService(self.my_logger)
 
         self.get_known_instruments()
 
-        # Setup Additional GUI
+        # Setup Experimental GUI
         self.experiment_window_gui = ExperimentWindowGui(self, self._ics, self.my_logger)
 
-        # Delegates instrument status check to a separate thread
+        # Delegates instrument server status check to a separate thread
         is_running_th = threading.Thread(target=self.check_instrument_status, daemon=True)
         is_running_th.start()
 
@@ -373,6 +373,8 @@ class InstrumentServerWindow(QMainWindow):
         if not self.check_if_instrument_selected():
             return
 
+        self.get_logger().info(f'Closing instrument {self.currently_selected_instrument}')
+
         try:
             self._ics.disconnect_instrument(self.currently_selected_instrument)
 
@@ -507,7 +509,7 @@ class InstrumentServerWindow(QMainWindow):
                 # Make sure we always close the connection
                 db.close_db(connection)
 
-    # Decorator allows method to know which item was double clicked, we can ignore column in this case
+    # Decorator allows method to know which item was double-clicked, we can ignore column in this case
     @pyqtSlot(QTreeWidgetItem, int)
     def show_quantity_manager_gui(self, item, column):
         cute_name = item.text(1)

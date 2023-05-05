@@ -53,7 +53,7 @@ class FlaskInstrumentServer:
     def start_instrument_server_gui(self):
         self.get_logger().debug(f'Instrument Server GUI thread ID: {threading.get_native_id()}')
         app = QApplication(sys.argv)
-        main_win = gui.InstrumentServerWindow(self._flask_app, self.get_logger(), dev_mode=self._dev_mode)
+        main_win = gui.InstrumentServerWindow(self._flask_app, self._my_logger, dev_mode=self._dev_mode)
         main_win.resize(800, 600)
         main_win.show()
         app.exec()
