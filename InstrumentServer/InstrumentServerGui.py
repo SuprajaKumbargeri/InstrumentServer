@@ -107,7 +107,7 @@ class InstrumentServerWindow(QMainWindow):
 
         self.get_known_instruments()
 
-        # Setup Experimental GUI
+        # Setup Experiment Windows GUI
         self.experiment_window_gui = ExperimentWindowGui(self, self._ics, self.my_logger)
 
         # Delegates instrument server status check to a separate thread
@@ -466,6 +466,7 @@ class InstrumentServerWindow(QMainWindow):
             self.get_logger().critical("Instrument Server is not responding!")
 
     def get_known_instruments(self):
+        """Get all the known instruments from DB"""
         self.clear_instrument_list()
         connection = None
 
@@ -528,6 +529,9 @@ class InstrumentServerWindow(QMainWindow):
         self.quantity_manager_gui = InstrumentManagerGUI(instrument_manager, self.my_logger)
 
 
+###################################################################################
+# AddInstrumentWindow
+###################################################################################
 class AddInstrumentWindow(QDialog):
     def __init__(self):
         super().__init__()

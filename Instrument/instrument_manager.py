@@ -65,7 +65,7 @@ class InstrumentManager:
                 self._logger.info(f'Connecting to VISA instrument: {self.name} using: {connection}')
                 self._instrument = self._rm.open_resource(connection)
 
-            # After we have the connected VISA resource, set visa and visa and serial settings
+            # After we have the connected VISA resource, set visa and serial settings
             self._set_visa_settings_in_visa_resource()
 
             if self._is_serial_instrument():

@@ -1,4 +1,9 @@
-import sys
+
+"""
+This is the Instrument Settings GUI that is used to edit Instrument "driver" parameters extracted
+from the associated driver INI file.
+"""
+
 import requests
 
 from PyQt6 import QtCore
@@ -88,6 +93,7 @@ class InstrumentSettingsGUI(QWidget):
         self.show()
 
     def _build_section_tree(self, setting_keys):
+        """Builds the setting group selection section on the left"""
         self.section_tree = QTreeWidget(self)
         self.section_tree.setHeaderLabels(['Instrument Settings'])
         self.section_tree.itemSelectionChanged.connect(self._handle_section_change)
@@ -97,6 +103,7 @@ class InstrumentSettingsGUI(QWidget):
             QTreeWidgetItem(self.section_tree, [section_name])
 
     def _handle_section_change(self):
+        """Fires when the user selects a different settings "group" on the left"""
         selected_section_name = self.section_tree.currentItem().text(0)
         print(f'Selected {selected_section_name}')
 
@@ -113,6 +120,7 @@ class InstrumentSettingsGUI(QWidget):
                 self.visa_settings_box.setVisible(True)
 
     def _build_bottom_btn_section(self):
+        """Constructs the button on the bottom of the GUI"""
         button_layout = QHBoxLayout()
 
         reset_btn = QPushButton("Reset")
@@ -131,6 +139,7 @@ class InstrumentSettingsGUI(QWidget):
         self.full_layout.addLayout(button_layout)
 
     def _get_settings_for_instrument(self, cute_name):
+        """Gets all the settings associated with the instrument"""
         try:
             url = r'http://127.0.0.1:5000/instrumentDB/getInstrumentSettings'
             response = requests.get(url, params={'cute_name': cute_name})
@@ -141,6 +150,7 @@ class InstrumentSettingsGUI(QWidget):
             return {}
 
     def _build_setting_sections(self):
+        """Constructs all the GUI "content" in all the setting groups"""
         setting_frames = dict()
         setting_frames['Main Settings'] = self._build_main_settings_frames()
         setting_frames['General Settings'] = self._build_general_settings_frames()
@@ -323,6 +333,7 @@ class InstrumentSettingsGUI(QWidget):
                         self._update_db_value_with_frame_data(frame)
 
     def _update_settings_clicked(self):
+        """Updated DB with user changes"""
         self.logger.info('Update was clicked')
 
         error_occurred = False
@@ -427,7 +438,7 @@ class InstrumentSettingsGUI(QWidget):
 
     def _exit_gui(self):
         """
-        Closes the experiment GUI
+        Closes the Settings GUI and triggers parent GUI "refresh"
         """
         # Reload the parent's GUI Instrument list
         self.parent_gui.get_known_instruments()
