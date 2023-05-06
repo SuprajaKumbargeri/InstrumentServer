@@ -1,3 +1,5 @@
+import os
+
 '''
     Takes dictionary of just section ['General settings'] and the path of the .ini driver
     Returns dictionary with all keys and values (given and default) as defined by section 12.1.2 in Labber manual
@@ -40,8 +42,8 @@ def getGenSettings(settings: dict, ini_path) -> dict:
 
     return {
         'name': settings['name'],
-        'ini_path': ini_path,
-        'driver_path': driver_path,
+        'ini_path': ini_path.replace('/', os.sep),
+        'driver_path': driver_path.replace('/', os.sep),
         'interface': interface,
         'address': address,
         'startup': startup,
