@@ -46,8 +46,6 @@ class MainExperimentProcedure(Procedure):
     sequence = {} # Dictionary with key -> (ins, qty), value -> sequence details dict: start, stop, number_of_points, data_type
     quantities = {} # Dictionary with key -> (ins, qty), value -> QuantitiyManager object
 
-    # The columns in the plotter
-    DATA_COLUMNS = ['step', 'dummy'] # TO FIX: Plotter Widget needs two columns to initialize
     # Dynamically added column names
     input_data_names = {}
     output_data_names = {}
@@ -67,14 +65,10 @@ class MainExperimentProcedure(Procedure):
         for level in self.input:
             for instrument_name, quantity_name in level:
                 input_name = "Input - " + str(instrument_name) + " - " + str(quantity_name)
-                if input_name not in self.DATA_COLUMNS:
-                    self.DATA_COLUMNS.append(input_name)
-                    self.input_data_names[(instrument_name, quantity_name)] = input_name
+                self.input_data_names[(instrument_name, quantity_name)] = input_name
         for instrument_name, quantity_name in self.output:
             output_name = "Output - " + str(instrument_name) + " - " + str(quantity_name)
-            if output_name not in self.DATA_COLUMNS:
-                self.DATA_COLUMNS.append(output_name)
-                self.output_data_names[instrument_name, quantity_name] = output_name
+            self.output_data_names[instrument_name, quantity_name] = output_name
     
     def set_logger(self, logger: logging.Logger):
         self.logger = logger
@@ -121,7 +115,7 @@ class MainExperimentProcedure(Procedure):
         for step_sequence in combined_sequences:
             # step sequence is a list of tupules [(1 , 'a'), (True, )]
             # The datapoints we record at each "step":
-            print(step_sequence)     
+ 
             data = {}
             for level in range(len(self.input)):
                 for index in range(len(self.input[level])):
@@ -154,15 +148,28 @@ class ExperimentRunner(ManagedWindow):
 
     def __init__(self, parent_gui, logger: logging.Logger, base_filename='experiment_results'):
         # Initialize the super class
+
+        # A reference to the invoking GUI
+        self.parent_gui = parent_gui
+        self.DTO = self.parent_gui.experiment_DTO
+        DATA_COLS = ['step']
+        
+
+        for level in self.DTO.input_quantities:
+            for instrument_name, quantity_name in level:
+                input_name = "Input - " + str(instrument_name) + " - " + str(quantity_name)            
+                DATA_COLS.append(input_name)
+
+        for instrument_name, quantity_name in self.DTO.output_quantities:
+            output_name = "Output - " + str(instrument_name) + " - " + str(quantity_name)
+            DATA_COLS.append(output_name)
+
+        MainExperimentProcedure.DATA_COLUMNS = DATA_COLS
         
         super().__init__(procedure_class=MainExperimentProcedure,
                          x_axis='step',
                          y_axis='step',
-                         directory_input=True)  # Enables directory input widget
-        # self.set_parameters(params)       
-
-        # A reference to the invoking GUI
-        self.parent_gui = parent_gui      
+                         directory_input=True)  # Enables directory input widget    
 
         play_icon = QIcon("../Icons/playButton.png")
         self.setWindowIcon(play_icon)
@@ -187,6 +194,8 @@ class ExperimentRunner(ManagedWindow):
         self.main_layout.addWidget(quit_btn)
         self.main_layout.setAlignment(quit_btn, Qt.AlignmentFlag.AlignRight)
 
+        self.show()
+
     def set_parameters(self, parameters):
         self.logger.info('Setting parameter values')
         return super().set_parameters(parameters)
@@ -197,9 +206,9 @@ class ExperimentRunner(ManagedWindow):
         # The full path to file where the experiment results will be written to
         filename = os.path.join(self.directory, self.generate_experiment_file_name(self.base_filename))
         self.logger.info(f'Writing results to file {filename}')
-
-        procedure = MainExperimentProcedure()
-        procedure.set_parameters(self.parent_gui.experiment_DTO, self.logger)
+        if procedure is None:
+            procedure = MainExperimentProcedure()
+            procedure.set_parameters(self.parent_gui.experiment_DTO, self.logger)
 
         results = Results(procedure, filename)
         experiment = self.new_experiment(results)
@@ -230,10 +239,20 @@ class ExperimentRunner(ManagedWindow):
         help_menu = experiment_menu_bar.addMenu("&Help")
 
     def exit_gui(self):
+        self.close()
+        
+    def closeEvent(self, event):
         """
         Closes the experiment GUI
         """
-        self.close()
+        self.logger.info("Exiting the window")
+        # disconnect log_widget slots manually to avoid
+        # RuntimeError: wrapped C/C++ object of type QPlainTextEdit has been deleted
+        self.log_widget.view.disconnect()
+        self.log_widget.handler.emitter.record.disconnect()
+        
+        super().closeEvent(event)        
+        self.destroy()
 
 
 if __name__ == "__main__":

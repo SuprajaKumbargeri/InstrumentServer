@@ -27,8 +27,7 @@ class ExperimentWindowGui(QMainWindow):
         lab_experiment_icon = QIcon("../Icons/labExperiment.png")
         self.setWindowIcon(lab_experiment_icon)
 
-        # Experiment runner GUI
-        self.experiment_runner_gui = ExperimentRunner(self, self.my_logger)
+
 
         # This is the outermost widget or the "main" widget
         self.main_widget = QWidget()
@@ -317,9 +316,7 @@ class ExperimentWindowGui(QMainWindow):
     def experiment_runner_clicked(self):
         self.get_logger().debug('Experiment Runner clicked')
         if self.validate_experiment_data():
-            print(self.experiment_DTO)
             self.experiment_DTO = self.construct_DTO()
-            print(self.experiment_DTO)
             self.show_experiment_runner_window()
         else:
             return
@@ -342,13 +339,15 @@ class ExperimentWindowGui(QMainWindow):
         help_menu = experiment_menu_bar.addMenu("&Help")
 
     def show_experiment_runner_window(self):
-        self.experiment_runner_gui.show()
+        # Experiment runner GUI
+        self.experiment_runner_gui = ExperimentRunner(self, self.my_logger)
+        # self.experiment_runner_gui.show()
 
     def exit_experiment_gui(self):
         """
         Closes the experiment GUI
         """
-        print('Exiting ExperimentWindowGui...')
+        self.get_logger().info('Exiting ExperimentWindowGui...')
         self.close()
 
 
