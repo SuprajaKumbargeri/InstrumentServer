@@ -15,7 +15,7 @@ Create 'serverStatus' Blueprint
 bp = Blueprint('serverStatus', __name__,  url_prefix='/serverStatus')
 
 
-def set_Logger(logger: logging.Logger):
+def set_logger(logger: logging.Logger):
     global my_logger 
     my_logger = logger
 

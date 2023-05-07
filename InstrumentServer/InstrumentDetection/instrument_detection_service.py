@@ -8,13 +8,14 @@ import pyvisa
 class InstrumentDetectionService:
 
     def __init__(self, logger: logging.Logger):
-        self.my_logger = logger
+        self._my_logger = logger
+        self._my_logger.debug(f'{self.__class__.__name__} initialized...')
 
     def detect_and_log_instruments(self):
         self.detect_and_log_visa_instruments()
 
     def detect_and_log_visa_instruments(self):
-        self.my_logger.info(f'Detected the following VISA resources: \n{self.detect_visa_resources()}')
+        self._my_logger.info(f'Detected the following VISA resources: \n{self.detect_visa_resources()}')
 
     def detect_visa_resources(self):
         """
@@ -31,16 +32,16 @@ class InstrumentDetectionService:
         Detects specified serial VISA instrument attached to the system using pyVISA backend.
         """
         rm = pyvisa.ResourceManager()
-        self.my_logger.info('Using baud_rate ' + str(baud_rate) + ' to connect to ' + resource_name)
+        self._my_logger.info('Using baud_rate ' + str(baud_rate) + ' to connect to ' + resource_name)
 
         try:
             resource = rm.open_resource(resource_name=resource_name, read_termination=read_termination,
                                         baud_rate=baud_rate)
         except Exception as ex:
-            self.my_logger.error(f'There was a problem connecting to serial VISA Instrument: \n{ex}')
+            self._my_logger.error(f'There was a problem connecting to serial VISA Instrument: \n{ex}')
 
         idn_str = str(resource.query('*IDN?'))
-        self.my_logger.info(idn_str)
+        self._my_logger.info(idn_str)
 
 
 def main():
