@@ -1,5 +1,7 @@
 # InstrumentServer
 
+[Instrument Server WIKI](https://github.com/DataCQProject/InstrumentServer/wiki)
+
 ![Main Window](./Screenshots/Instrument_Server_GUI.PNG)
 
 ### VISA Backend:
