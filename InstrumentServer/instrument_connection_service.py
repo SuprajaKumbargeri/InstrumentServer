@@ -89,13 +89,24 @@ class InstrumentConnectionService:
             # importing custom driver module from the driver_path
             # Assumption: driver_path and driver are the same
             driver_path = driver_dict["general_settings"]["driver_path"]
-            module_location = os.sep.join(driver_path.split(os.sep)[:-1])
-            module_name = driver_path.split(os.sep)[-1].replace(".py", "")
 
+            # if absolute path, use that exact file
+            if os.path.isabs(driver_path):
+                module_location = os.sep.join(driver_path.split(os.sep)[:-1])
+                module_name = driver_path.split(os.sep)[-1].replace(".py", "")
+            # if relative path, use the drictory of the ini file as starting point
+            else:
+                ini_path = driver_dict["general_settings"]["ini_path"]
+                module_location = os.sep.join(ini_path.split(os.sep)[:-1])
+                module_name = driver_path.split(os.sep)[-1].replace(".py", "")
+
+            # set environment to look at location
             sys.path.append(module_location)
-            custom_driver = importlib.import_module(module_name)
 
+            # import module
+            custom_driver = importlib.import_module(module_name)
             ManagerClass = getattr(custom_driver, module_name)
+
         else:
             ManagerClass = InstrumentManager
 
@@ -123,15 +134,26 @@ class InstrumentConnectionService:
         try:
             # importing custom driver module from the driver_path
             driver_path = response_dict["general_settings"]["driver_path"]
-            if os.path.exists(driver_path):
-                self._my_logger.info(f"Custom module file {driver_path} exists.")
-            print("PLEASE WORK----------------------------")
-            print(driver_path)
-            module_name = driver_path.split(os.sep)[-1].replace(".py", "")
-            print(module_name)
-            module_location = os.sep.join(driver_path.split(os.sep)[:-1])
+
+            # if absolute path, use that exact file
+            if os.path.isabs(driver_path):
+                module_location = os.sep.join(driver_path.split(os.sep)[:-1])
+                module_name = driver_path.split(os.sep)[-1].replace(".py", "")
+            # if relative path, use the drictory of the ini file as starting point
+            else:
+                ini_path = response_dict["general_settings"]["ini_path"]
+                ini_location = os.sep.join(ini_path.split(os.sep)[:-1])
+
+                module_location = ini_location + os.sep + os.sep.join(driver_path.split(os.sep)[:-1])
+                module_name = driver_path.split(os.sep)[-1].replace(".py", "")
+
+            # set environment to look at location
             sys.path.append(module_location)
+
+            # import module
             custom_driver = importlib.import_module(module_name)
+
+            # create connection
             im = getattr(custom_driver, module_name)(name=cute_name, driver=response_dict, logger=self._my_logger)
             self._connected_instruments[cute_name] = im
 
