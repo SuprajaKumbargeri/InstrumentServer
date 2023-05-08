@@ -164,7 +164,8 @@ class ExperimentRunner(ManagedWindow):
         # A reference to the invoking GUI
         self.parent_gui = parent_gui      
 
-        play_icon = QIcon("../Icons/playButton.png")
+        self.icons_dir = parent_gui.icons_dir
+        play_icon = QIcon(os.path.join(self.icons_dir, "playButton.png"))
         self.setWindowIcon(play_icon)
 
         # The logger

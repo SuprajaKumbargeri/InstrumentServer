@@ -1,4 +1,5 @@
 import sys
+import os
 from http import HTTPStatus
 
 import requests
@@ -14,6 +15,7 @@ from GUI.experimentWindowGui import ExperimentWindowGui
 from GUI.instrument_manager_gui import InstrumentManagerGUI
 from enum import Enum
 from GUI.instrument_settings_gui import InstrumentSettingsGUI
+from collections import OrderedDict
 
 
 class INST_INTERFACE(Enum):
@@ -46,28 +48,48 @@ class InstrumentServerWindow(QMainWindow):
         # The parent flask application
         self.flask_app = flask_app
 
-        self.green_icon = QIcon("../Icons/greenIcon.png")
-        self.red_icon = QIcon("../Icons/redIcon.png")
-
         # The "top most" layout is vertical box layout (top -> bottom)
         self.main_layout = QVBoxLayout()
 
         # This is the outermost widget
         self.main_widget = QWidget()
 
-        self.setWindowTitle("Instrument Server")
+        parent_dir = os.getcwd()
+        self.my_logger.debug(f'InstrumentServerWindow current working directory: {parent_dir}')
 
-        server_icon = QIcon("../Icons/servers.png")
+        # Split path using OS specific separator
+        list_of_str = parent_dir.split(os.sep)
+
+        # Create Dict that preserves order of list_of_str
+        ordered_dict = OrderedDict.fromkeys(list_of_str)
+
+        # Concern the dict keys back to list
+        set_with_order = list(ordered_dict.keys())
+
+        # Add OS separator for driver (usually C)
+        set_with_order[0] = set_with_order[0] + os.sep
+
+        # Construct a valid parent dir path
+        parent_dir = os.path.join(*set_with_order)
+
+        # Set Icons directory
+        self.icons_dir = os.path.join(parent_dir, "Icons")
+        self.my_logger.info(f'Icons directory: {self.icons_dir}')
+
+        server_icon = QIcon(os.path.join(self.icons_dir, "servers.png"))
+        self.green_icon = QIcon(os.path.join(self.icons_dir, "greenIcon.png"))
+        self.red_icon = QIcon(os.path.join(self.icons_dir, "redIcon.png"))
+        self.settings_icon = QIcon(os.path.join(self.icons_dir, "gear.png"))
+        self.remove_icon = QIcon(os.path.join(self.icons_dir, "delete.png"))
+        self.add_icon = QIcon(os.path.join(self.icons_dir, "add.png"))
+        self.create_experiment_icon = QIcon(os.path.join(self.icons_dir, "edit.png"))
+        self.connect_icon = QIcon(os.path.join(self.icons_dir, "connection.png"))
+        self.connect_all_icon = QIcon(os.path.join(self.icons_dir, "connection_multiple.png"))
+        self.close_icon = QIcon(os.path.join(self.icons_dir, "unlink.png"))
+        self.close_all_icon = QIcon(os.path.join(self.icons_dir, "disconnect_all.png"))
+
         self.setWindowIcon(server_icon)
-
-        self.settings_icon = QIcon("../Icons/gear.png")
-        self.remove_icon = QIcon("../Icons/delete.png")
-        self.add_icon = QIcon("../Icons/add.png")
-        self.create_experiment_icon = QIcon("../Icons/edit.png")
-        self.connect_icon = QIcon("../Icons/connection.png")
-        self.connect_all_icon = QIcon("../Icons/connection_multiple.png")
-        self.close_icon = QIcon("../Icons/unlink.png")
-        self.close_all_icon = QIcon("../Icons/disconnect_all.png")
+        self.setWindowTitle("Instrument Server")
 
         self.construct_menu()
 
