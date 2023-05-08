@@ -1,10 +1,6 @@
-import logging
-from PyQt6.QtCore import *
-from PyQt6.QtWidgets import *
-from PyQt6.QtGui import *
+import os.path
 from GUI.experiment_runner_gui import ExperimentRunner
 
-from GUI.quantity_frames import *
 from GUI.channels_table import *
 from GUI.sequence_table import *
 from GUI.log_channels_table import *
@@ -21,10 +17,10 @@ class ExperimentWindowGui(QMainWindow):
         self.resize(1000, 800)
         self._ics = ics
         self._working_instruments = dict()
-
+        self.icons_dir = parent_gui.icons_dir
         self.experiment_DTO = None
 
-        lab_experiment_icon = QIcon("../Icons/labExperiment.png")
+        lab_experiment_icon = QIcon(os.path.join(parent_gui.icons_dir, 'labExperiment.png'))
         self.setWindowIcon(lab_experiment_icon)
 
         # Experiment runner GUI
@@ -147,7 +143,7 @@ class ExperimentWindowGui(QMainWindow):
         # The main widget in for this section
         self.right_side_section = QVBoxLayout()
 
-        play_icon = QIcon("../Icons/playButton.png")
+        play_icon = QIcon(os.path.join(self.icons_dir, "playButton.png"))
         experiment_runner_btn = QPushButton("Experiment Runner")
         experiment_runner_btn.setIcon(play_icon)
         experiment_runner_btn.clicked.connect(self.experiment_runner_clicked)

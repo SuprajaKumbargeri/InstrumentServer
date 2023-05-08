@@ -11,7 +11,7 @@ def main():
     Creates & Deploys Instrument Server
     Add dev_mode=True to NOT load a VISA backend (required to connect to instruments).
     """
-    server = flask_instrument_server.FlaskInstrumentServer(dev_mode=True)
+    server = flask_instrument_server.FlaskInstrumentServer()
     server.run_server()
 
 
