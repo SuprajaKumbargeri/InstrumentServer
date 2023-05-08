@@ -125,7 +125,7 @@ class MainExperimentProcedure(Procedure):
                     sleep(self.delay_time)                
 
             for (ins, qty) in self.output:
-                data[self.output_data_names[(ins, qty)]] = self.quantities[(ins, qty)].get_value()
+                data[self.output_data_names[(ins, qty)]] = float(self.quantities[(ins, qty)].get_value())
                 sleep(self.delay_time)
 
             data['step'] = step
