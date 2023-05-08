@@ -15,19 +15,20 @@ from GUI.log_channels_table import *
 class ExperimentWindowGui(QMainWindow):
     def __init__(self, parent_gui, ics, logger: logging.Logger):
         super().__init__()
-        self.parent_gui = parent_gui
+        self.parent_gui = parent_gui # The parent GUI object.
         self.my_logger = logger
-        self.setWindowTitle('Experiment')
+        self.setWindowTitle('Create Experiment')
         self.resize(1000, 800)
-        self._ics = ics
-        self._working_instruments = dict()
+        self._ics = ics # InstrumentConnectionService object from the parent gui
 
-        self.experiment_DTO = None
+        # Dictionary of instruments added for the experiment in the Channels table
+        # key -> Instrument Name, value -> InstrumentManager object
+        self._working_instruments = dict() 
+
+        self.experiment_DTO = None # the Data Transfer Object with experiment details that the Experiment Runner uses
 
         lab_experiment_icon = QIcon("../Icons/labExperiment.png")
         self.setWindowIcon(lab_experiment_icon)
-
-
 
         # This is the outermost widget or the "main" widget
         self.main_widget = QWidget()
@@ -51,6 +52,22 @@ class ExperimentWindowGui(QMainWindow):
         # Make the Menu Bar
         self.construct_experiment_menu_bar()
 
+    def construct_experiment_menu_bar(self):
+        """
+        Constructs the Menu Bar on top
+        """
+        experiment_menu_bar = self.menuBar()
+        experiment_menu_bar.addSeparator()
+        file_menu = experiment_menu_bar.addMenu("&File")
+
+        # Defines the action to exit GUI via the menu bar File section
+        exit_action = QAction("&Exit", self)
+        exit_action.triggered.connect(self.exit_experiment_gui)
+        file_menu.addAction(exit_action)
+
+        edit_menu = experiment_menu_bar.addMenu("&Edit")
+        help_menu = experiment_menu_bar.addMenu("&Help")
+
     def get_logger(self):
         """Get the application logger"""
         return self.my_logger
@@ -64,6 +81,13 @@ class ExperimentWindowGui(QMainWindow):
         self.step_sequence_table.remove_channel(instrument_name)
         self.log_channels_table.remove_channel(instrument_name)
         return
+    
+    def exit_experiment_gui(self):
+        """
+        Closes the create experiment GUI
+        """
+        self.get_logger().info('Exiting ExperimentWindowGui...')
+        self.close()
 
     ####################################################################
     # Channel table related implementation
@@ -108,9 +132,7 @@ class ExperimentWindowGui(QMainWindow):
         self.main_layout.addWidget(self.channels_group)
 
     def add_channel(self):
-        """
-        Implements the add instrument functionality to the Channel table
-        """
+        """Implements the add instrument functionality to the Channel table"""
         dialog = AddChannelDialog(self._ics._connected_instruments)
         if dialog.exec():
             # Get the selected item from the dialog box
@@ -120,18 +142,14 @@ class ExperimentWindowGui(QMainWindow):
                 self.channels_table.add_channel_item(instrument_manager)
 
     def remove_channel(self):
-        """
-        Removes an added instrument from channel table
-        """
+        """Removes an added instrument from channel table"""
         instrument_name = self.channels_table.remove_channel() # returns the deleted instrument's name
         if instrument_name:
             self.remove_experiment_quantities(instrument_name)
         return
 
     def edit_channel_quantity(self):
-        """
-        Modifies an existing instrument's quantity
-        """
+        """Modifies an existing instrument's quantity"""
         if self.channels_table.currentItem() is not None:
             self.channels_table.show_quantity_frame_gui(self.channels_table.currentItem())
         return
@@ -163,9 +181,6 @@ class ExperimentWindowGui(QMainWindow):
         # This is the table for looping values in the experiment
         self.step_sequence_table = StepSequenceTreeWidget(self._working_instruments, self.item_valid, self.my_logger)
 
-        # Expand all the inner items
-        self.step_sequence_table.expandAll() # TODO: Remove
-
         step_sequence_main_layout.addWidget(self.step_sequence_table)
 
         # Button section for 'edit' and 'remove' options
@@ -188,17 +203,13 @@ class ExperimentWindowGui(QMainWindow):
         self.right_side_section.addWidget(self.step_sequence_group, 3)
 
     def edit_quantity_sequence(self):
-        """
-        Modifies an existing sequence for a quantity
-        """
+        """Modifies an existing sequence for a quantity"""
         if self.step_sequence_table.currentItem() is not None:
             self.step_sequence_table.show_sequence_constructor_gui(self.step_sequence_table.currentItem())
         return
     
     def remove_quantity_sequence(self):
-        """
-        Removes an added quantity from sequence table
-        """
+        """Removes an added quantity from sequence table"""
         self.step_sequence_table.remove_quantity()
         return
 
@@ -226,11 +237,6 @@ class ExperimentWindowGui(QMainWindow):
 
         # Button section for 'edit' and 'remove' options
         button_section_layout = QHBoxLayout()
-        '''
-        edit_btn = QPushButton("Edit...")
-        button_section_layout.addStretch(1)
-        button_section_layout.addWidget(edit_btn)
-       '''
         
         remove_btn = QPushButton("Remove")
         button_section_layout.addStretch(1)                
@@ -273,16 +279,16 @@ class ExperimentWindowGui(QMainWindow):
         self.delay_time.setMinimum(0)
         self.delay_time.setMaximum(float('inf'))
         timing_layout.addRow(QLabel("Delay between step and measure [s]:"), self.delay_time)
-        # TODO: Connect later
+        # TODO: Connect if needed
         # self.delay_time.valueChanged.connect(delay_time_changed)
 
         self.estimated_time = QSpinBox()
         timing_layout.addRow(QLabel("Estimated time per point [s]:"), self.estimated_time)
-        # TODO: Connect later
+        # TODO: Connect if needed
         # self.estimated_time.valueChanged.connect(delay_estimated_time)
 
-        # TODO: Connect later to set time needed value
-        self.time_needed = "0:00:00" # replace with calculated time needed value      
+        # TODO: Connect if needed to set time estimated value
+        self.time_needed = "0:00:00" # replace with calculated time estimated value      
         timing_layout.addRow(QLabel("Time needed:"), QLabel(self.time_needed))
 
         self.timing_group.setLayout(timing_layout)
@@ -300,13 +306,13 @@ class ExperimentWindowGui(QMainWindow):
         self.main_layout.addLayout(self.right_side_section)
 
     def remove_log_quantity(self):
-        """
-        Removes an added quantity from log table
-        """
+        """Removes an added quantity from log table"""
         self.log_channels_table.remove_quantity()
         return
 
     def comment_text_changed(self):
+        """Handles change of comment text"""
+        # TODO: Implement if needed
         pass
 
 
@@ -314,6 +320,10 @@ class ExperimentWindowGui(QMainWindow):
     # Experiment Runner related implementation
     ####################################################################
     def experiment_runner_clicked(self):
+        """
+        Validates the step sequence, creates an experiment DTO 
+        and calls to shiw the Experiment Runner window for the created DTO
+        """
         self.get_logger().debug('Experiment Runner clicked')
         if self.validate_experiment_data():
             self.experiment_DTO = self.construct_DTO()
@@ -321,60 +331,13 @@ class ExperimentWindowGui(QMainWindow):
         else:
             return
 
-
-    def construct_experiment_menu_bar(self):
-        """
-        Constructs the Menu Bar on top
-        """
-        experiment_menu_bar = self.menuBar()
-        experiment_menu_bar.addSeparator()
-        file_menu = experiment_menu_bar.addMenu("&File")
-
-        # Defines the action to exit GUI via the menu bar File section
-        exit_action = QAction("&Exit", self)
-        exit_action.triggered.connect(self.exit_experiment_gui)
-        file_menu.addAction(exit_action)
-
-        edit_menu = experiment_menu_bar.addMenu("&Edit")
-        help_menu = experiment_menu_bar.addMenu("&Help")
-
     def show_experiment_runner_window(self):
-        # Experiment runner GUI
+        """Creates adnd shows the Experiment Runner GUI"""
         self.experiment_runner_gui = ExperimentRunner(self, self.my_logger)
-        # self.experiment_runner_gui.show()
-
-    def exit_experiment_gui(self):
-        """
-        Closes the experiment GUI
-        """
-        self.get_logger().info('Exiting ExperimentWindowGui...')
-        self.close()
-
-
-    ####################################################################
-    # Data validation related implementaion
-    ####################################################################
-    def item_valid(self, ins_name: str, qty_name: str):
-        if self.step_sequence_table.check_item_valid(ins_name, qty_name) and self.log_channels_table.check_item_valid(ins_name, qty_name):
-            return True
-        else:
-            return False
-        
-    def validate_experiment_data(self):
-
-        # Ensure no over-lap between step sequence table and log channels table quantities
-        if set(self.step_sequence_table.quantities) & (set(self.log_channels_table.quantities)):
-            self.get_logger().error("Duplicate quantities in Step Sequence and Log Channels tables.")
-            return False
-
-        # Ensure sequences at the same level have the same number of points
-        if not self.step_sequence_table.validate_sequence():
-            return False
-        
-        return True       
-        
+        self.experiment_runner_gui.show()
 
     def construct_DTO(self):
+        """Constructs the DTO for an experiment """
         self.get_logger().info("Constructing DTO ...")
         input_quantities, quantity_sequences = self.step_sequence_table.get_step_sequence_quantities()
         output_quantities = self.log_channels_table.get_log_table_quantities()
@@ -398,11 +361,55 @@ class ExperimentWindowGui(QMainWindow):
                             comments=self.comment_box.toPlainText())
         return DTO
 
+    ####################################################################
+    # Data validation related implementaion
+    ####################################################################
+    def item_valid(self, ins_name: str, qty_name: str):
+        """
+        Validates if a quantity (represented as (ins, qty)) already exists in either of Step Sequence and Log Channels table
+        Returns True if the item doesn't already exist in these tables and hence can be added
+        Returns False if the item already exists
+        """
+        if self.step_sequence_table.check_item_valid(ins_name, qty_name) and self.log_channels_table.check_item_valid(ins_name, qty_name):
+            return True
+        else:
+            return False
+        
+    def validate_experiment_data(self):
+        """Checks if the step sequence data is valid to construct an experiment with"""
+        # Ensure no over-lap between step sequence table and log channels table quantities
+        if set(self.step_sequence_table.quantities) & (set(self.log_channels_table.quantities)):
+            self.get_logger().error("Duplicate quantities in Step Sequence and Log Channels tables.")
+            return False
+
+        # Ensure sequences at the same level have the same number of points
+        if not self.step_sequence_table.validate_sequence():
+            return False
+        
+        return True       
+
 ####################################################################
 # Data Transfer Object Class
 ####################################################################
 
 class ExperimentDTO:
+    """
+    Holds experiment details for the Experiment Runner to use
+    input_quantities: list containing list of input quantities represented as (ins, qty) at each level
+        Example: input_quantities[0] contains list of (ins, qty) at level 0
+    quantity_sequences: dictionary of dictionaries with sequence data for a quantity represented as (ins, qty)
+        dictionary format: key -> (ins, qty)
+                           value -> {'datapoints': points, 
+                                        'start':start, 
+                                        'stop':stop, 
+                                        'datatype': data_type}
+    output_quantities: list of output quantities represented as (ins, qty)
+    quantitiy_managers: dictionary of quantity managers for all input and output quantities
+        dictionary format: key -> (int, qty)
+                           value -> QuantityManager object
+    delay_time: float value representing the delay time set in the timing section
+    comments: text entered in the comment section    
+    """
     def __init__(self, input_quantities: list, quantity_sequences: dict, 
                  output_quantities: list, quantitiy_managers: dict,
                  delay_time: float, comments: str):

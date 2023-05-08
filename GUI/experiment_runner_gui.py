@@ -13,9 +13,21 @@ from datetime import datetime
 
 from itertools import product
 import numpy as np
+
+"""
+Implementation of Experiment Runner is inspired by PyMeasure's tutorial on ManagedWindow 
+ref: https://pymeasure.readthedocs.io/en/latest/tutorial/graphical.html#using-the-managedwindow
+
+MainExperimentProcedure extends PyMeasure's Procedure class and implements experiment according to
+Experiment GUI's experiment DTO by creating dynamic loops. This is achieved using python's itertools package.
+"""
+
 ###################################################################################
 # StringParameter
 ###################################################################################
+# Extend the implementation of procedure class using PyMeasure's Parameter rather than using local objects for attributes
+# This is an example of defining a StringParameter class extending the Parameter class
+# Default classes are already defined in PyMeasure for Integer and Float
 class StringParameter(Parameter):
     """ :class:`Parameter` sub-class that uses the string type to store the value.
 
@@ -53,7 +65,7 @@ class MainExperimentProcedure(Procedure):
     delay_time = 0 # delay time between each command
 
     def set_parameters(self, DTO, logger):
-
+        """Sets values to all the above attributes using DTO from the Experiment GUI"""
         self.set_logger(logger)
         self.input = DTO.input_quantities
         self.sequence = DTO.quantity_sequences
@@ -71,15 +83,20 @@ class MainExperimentProcedure(Procedure):
             self.output_data_names[instrument_name, quantity_name] = output_name
     
     def set_logger(self, logger: logging.Logger):
+        """Sets logger"""
         self.logger = logger
 
     def startup(self):
+        """Start up method"""
         self.logger.info('startup() was called')
         
     def generate_sequence(self, seq: dict):
+        """Generates an array of values for [start, stop] range with given number of points"""
         if seq['datatype'].upper() == 'DOUBLE':
             return np.linspace(seq['start'], seq['stop'], seq['datapoints'])
         else:
+            # implements the same for non-float or non-int values too, such as boolean or combo
+            # generates a list of start and stop values of length of given number of points
             if seq['start'] != seq['stop']:
                 number_of_points = seq['datapoints']
                 return ([seq['start']] * (number_of_points // 2)) + ([seq['stop']] * (number_of_points - (number_of_points // 2)))
@@ -87,10 +104,13 @@ class MainExperimentProcedure(Procedure):
                 return [seq['start']] * seq['datapoints']
 
     def execute(self):
+        """Implements the experiment: creates dynamic loops; sets input values; records measured datapoint"""
         self.logger.info(f'Starting experiment')
 
         datapoints = 1 # number of datapoints
         individual_sequences = []
+
+        # generate sequences
         for input_level in self.input:
             sequences_in_level = []
             for (ins, qty) in input_level:
@@ -101,6 +121,7 @@ class MainExperimentProcedure(Procedure):
                     pass
             datapoints *= len(sequences_in_level[0])
             """
+            example:
             converting [[1, 2, 3], ['a', 'b', 'c']] to [(1, 'a'), (2, 'b'), (3, 'c')]
             """
             sequences_in_order = list(zip(*sequences_in_level))
@@ -152,9 +173,12 @@ class ExperimentRunner(ManagedWindow):
         # A reference to the invoking GUI
         self.parent_gui = parent_gui
         self.DTO = self.parent_gui.experiment_DTO
-        DATA_COLS = ['step']
-        
 
+        # redefining procedure class with the experiment columns received from the Experiment GUI
+        # This step is performed because ManagedWindow creates PlotWidget during its instantiation
+        # It only takes the procedure_class's definition so the class definition has to be modified to
+        # include the new dynamically added columns for the experiment plotting
+        DATA_COLS = ['step']      
         for level in self.DTO.input_quantities:
             for instrument_name, quantity_name in level:
                 input_name = "Input - " + str(instrument_name) + " - " + str(quantity_name)            
@@ -166,6 +190,7 @@ class ExperimentRunner(ManagedWindow):
 
         MainExperimentProcedure.DATA_COLUMNS = DATA_COLS
         
+        # ManagedWindow's constructor
         super().__init__(procedure_class=MainExperimentProcedure,
                          x_axis='step',
                          y_axis='step',
@@ -201,6 +226,9 @@ class ExperimentRunner(ManagedWindow):
         return super().set_parameters(parameters)
 
     def queue(self, procedure=None):
+        """
+        Overrides ManagedWindow's queue method
+        """
         self.logger.info('Starting measurement procedure')
 
         # The full path to file where the experiment results will be written to
@@ -239,6 +267,9 @@ class ExperimentRunner(ManagedWindow):
         help_menu = experiment_menu_bar.addMenu("&Help")
 
     def exit_gui(self):
+        """
+        self.close() automatically calls closeEvent
+        """
         self.close()
         
     def closeEvent(self, event):
