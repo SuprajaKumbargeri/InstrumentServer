@@ -196,7 +196,8 @@ class ExperimentRunner(ManagedWindow):
                          y_axis='step',
                          directory_input=True)  # Enables directory input widget    
 
-        play_icon = QIcon("../Icons/playButton.png")
+        self.icons_dir = parent_gui.icons_dir
+        play_icon = QIcon(os.path.join(self.icons_dir, "playButton.png"))
         self.setWindowIcon(play_icon)
 
         # The logger

@@ -26,14 +26,11 @@ class InstrumentConnectionService:
     def __init__(self, logger: logging.Logger) -> None:
         self._connected_instruments = {}
         self._my_logger = logger
+        self._my_logger.debug(f'{self.__class__.__name__} initialized...')
 
     @property
     def connected_instruments(self):
         return self._connected_instruments
-
-    @property
-    def my_logger(self):
-        return self._my_logger
 
     def is_connected(self, cute_name: str) -> bool:
         return cute_name in self._connected_instruments.keys()
@@ -56,7 +53,8 @@ class InstrumentConnectionService:
         interface = driver_dict['instrument_interface']['interface']
         address = driver_dict['instrument_interface']['address']
 
-        self._my_logger.debug(f'Cute_name: {cute_name} uses interface: {interface} and address: {address}')
+        self._my_logger.debug(f'Instrument with cute_name: {cute_name} uses interface: {interface}'
+                              f' and address: {address}')
 
         # Get list of resources to compare to
         rm = pyvisa.ResourceManager()
@@ -84,7 +82,7 @@ class InstrumentConnectionService:
             raise ConnectionError(f"Could not connect to {cute_name}. Available resources are: {resources}")
 
         # Connect to instrument
-        self._my_logger.debug('Using connection string: {connection_str} to connect to {cute_name}')
+        self._my_logger.debug(f'Using connection string: {connection_str} to connect to {cute_name}')
 
         driver_path = driver_dict["general_settings"]["driver_path"]
         if driver_path:
@@ -156,7 +154,7 @@ class InstrumentConnectionService:
             custom_driver = importlib.import_module(module_name)
 
             # create connection
-            im = getattr(custom_driver, module_name)(name=cute_name, driver=response_dict, logger=self.my_logger)
+            im = getattr(custom_driver, module_name)(name=cute_name, driver=response_dict, logger=self._my_logger)
             self._connected_instruments[cute_name] = im
 
             self._my_logger.info(f"Connected to {cute_name}.")
@@ -170,13 +168,14 @@ class InstrumentConnectionService:
             return
 
         del self._connected_instruments[cute_name]
-        self.my_logger.debug(f"Disconnected {cute_name}.")
+        self._my_logger.debug(f"Disconnected {cute_name}.")
 
     def disconnect_all_instruments(self):
         instr_names = list(self._connected_instruments.keys())
         list_of_failures = list()
 
         for instrument_name in instr_names:
+            self._my_logger.info(f'Disconnecting instrument {instrument_name}...')
             try:
                 self.disconnect_instrument(instrument_name)
             except:

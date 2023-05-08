@@ -20,7 +20,8 @@ import InstrumentServerGui as gui
 class FlaskInstrumentServer:
 
     def __init__(self, dev_mode=False):
-        """Initializes Instrument Server Application.
+        """
+        Initializes Instrument Server Application.
         If dev_mode is True, will not try to load VISA backend.
         """
         self._my_logger = self.setup_logger()
@@ -41,19 +42,22 @@ class FlaskInstrumentServer:
         return self._my_logger
 
     def setup_logger(self):
-        """Setup the Logger"""
+        """Set up the main application Logger"""
         my_logger = logging.getLogger()
         handler = logging.StreamHandler()
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         handler.setFormatter(formatter)
         my_logger.addHandler(handler)
         my_logger.setLevel(logging.DEBUG)
+
+        my_logger.info(f'Logger Level set to {my_logger.level}')
         return my_logger
 
     def start_instrument_server_gui(self):
+        """Initializes and runs the main Instrument Server Window"""
         self.get_logger().debug(f'Instrument Server GUI thread ID: {threading.get_native_id()}')
         app = QApplication(sys.argv)
-        main_win = gui.InstrumentServerWindow(self._flask_app, self.get_logger(), dev_mode=self._dev_mode)
+        main_win = gui.InstrumentServerWindow(self._flask_app, self._my_logger, dev_mode=self._dev_mode)
         main_win.resize(800, 600)
         main_win.show()
         app.exec()
@@ -103,22 +107,31 @@ class FlaskInstrumentServer:
         except OSError:
             pass
 
+        #
         # Register database application
+        #
         db.setLogger(self._my_logger)
         db.init_db(app)
 
+        #
         # Register Server Status blueprint
+        #
         app.register_blueprint(serverStatus.bp)
-        serverStatus.set_Logger(self._my_logger)
+        serverStatus.set_logger(self._my_logger)
 
+        #
+        # Register driver parser blueprint
+        #
         app.register_blueprint(driverParser.bp)
         driverParser.setLogger(self._my_logger)
 
-        # Wait for Instrument detection to finish
+        # Wait for Instrument detection to finish (detects all VISA resources)
         if not self._dev_mode:
             detect_inst_thread.join()
 
+        #
         # Register instrument database related blueprint
+        #
         app.register_blueprint(instrumentDB.bp)
         instrumentDB.setLogger(self._my_logger)
 
@@ -130,8 +143,11 @@ class FlaskInstrumentServer:
 
         @app.route('/shutDown')
         def shut_down():
+            """
+            Takes down instrument server - NOTE: Instruments will not be disconnected!
+            """
             # os.system('cmd /c "pg_ctl -D "C:\Program Files\PostgreSQL\\15\data" stop"')
-            self._my_logger.info("Instrument Server is shutting down...")
+            self._my_logger.critical("Instrument Server is shutting down...")
 
             # Terminate the entire application
             os._exit(0)

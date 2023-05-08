@@ -1,5 +1,8 @@
 # InstrumentServer
-Python Flask based server handling all communication between instruments &amp; clients
+
+This project was worked on by Jahoon Koo, Supraja Kumbergeri, Ray Shash, and Thomas Starnes as part of our capstone project towards our master's degrees at the University of Colorado Boulder. This project was sponsored by NIST. For documentation on how to install and use, please see the [WIKI](https://github.com/DataCQProject/InstrumentServer/wiki)
+
+![Main Window](./Screenshots/Instrument_Server_GUI.PNG)
 
 ### VISA Backend:
 Since PyVISA is used, you need to have a suitable VISA backend. PyVISA includes a backend that wraps the National Instruments’s VISA library. 

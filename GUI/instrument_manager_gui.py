@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QTreeWidget, QTreeWidgetItem, QPushButton, QFrame)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QTreeWidget, QTreeWidgetItem, QPushButton)
 from Instrument.instrument_manager import InstrumentManager
 from GUI.quantity_frames import *
 import logging
