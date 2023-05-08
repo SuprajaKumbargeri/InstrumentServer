@@ -245,7 +245,14 @@ class InstrumentManager:
 
     def link_quantity(self, quantity: str, link_to: QuantityManager, link_set: bool, link_get: bool):
         """"""
-        self.quantities[quantity].link
+        if link_set:
+            self.quantities[quantity].linked_quantity_set = link_to
+        else:
+            self.quantities[quantity].linked_quantity_set = None
+        if link_get:
+            self.quantities[quantity].linked_quantity_get = link_to
+        else:
+            self.quantities[quantity].linked_quantity_get = None
 
     def get_value(self, quantity):
         """Gets value for given quantity
