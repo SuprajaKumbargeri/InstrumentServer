@@ -1,9 +1,10 @@
 from PyQt6 import QtCore, QtWidgets as QtW
 from PyQt6.QtGui import QFont, QAction, QCursor
-from typing import Callable
+from typing import Callable, Optional
 import logging
 
 from Instrument.quantity_manager import QuantityManager
+from Instrument.instrument_manager import InstrumentManager
 
 
 class QuantityFrame(QtW.QFrame):
@@ -280,3 +281,100 @@ class QuantityGroupBox(QtW.QGroupBox):
             self.layout.addWidget(frame)
 
         self.setLayout(self.layout)
+
+
+class LinkQuantityFrame(QtW.QFrame):
+    def __init__(self, quantity: QuantityManager, instruments: dict[str: InstrumentManager]):
+        super().__init__()
+
+        self.quantity_manager = quantity
+        self.connected_instruments = instruments
+
+        layout = QtW.QVBoxLayout()
+        h1_layout = QtW.QHBoxLayout()
+        h2_layout = QtW.QHBoxLayout()
+
+        self.instrument_combo = QtW.QComboBox()
+        self.quantity_combo = QtW.QComboBox()
+
+        h1_layout.addWidget(self.instrument_combo)
+        h1_layout.addWidget(self.quantity_combo)
+
+        self.link_set_checkbox = QtW.QCheckBox("Link for writes")
+        self.link_get_checkbox = QtW.QCheckBox("Link for reads")
+
+        self.initialize_widgets()
+
+        h2_layout.addWidget(self.link_set_checkbox)
+        h2_layout.addWidget(self.link_get_checkbox)
+        widget1 = QtW.QWidget()
+        widget2 = QtW.QWidget()
+        widget1.setLayout(h1_layout)
+        widget2.setLayout(h2_layout)
+        layout.addWidget(widget1)
+        layout.addWidget(widget2)
+        self.setLayout(layout)
+
+    def initialize_widgets(self):
+        items = ["None"]
+        items += list(self.connected_instruments.keys())
+        self.instrument_combo.addItems(items)
+        self.instrument_combo.currentTextChanged.connect(self.on_instrument_change)
+
+        self.quantity_combo.addItem("None")
+
+        # linked_wuant could be set twice, but will always be same quantity
+        linked_quant = None
+        # Set checkboxes to True if quantity is linked to read/write
+        if self.quantity_manager.linked_quantity_set:
+            linked_quant = self.quantity_manager.linked_quantity_set
+            self.link_set_checkbox.setChecked(True)
+        if self.quantity_manager.linked_quantity_get:
+            linked_quant = self.quantity_manager.linked_quantity_get
+            self.link_get_checkbox.setChecked(True)
+
+        if linked_quant:
+            # set instrument combo index to instrument of linked quantity
+            self.instrument_combo.setCurrentText(linked_quant.instrument_name)
+            # set quantity combo index to linked quantity
+            self.quantity_combo.setCurrentText(linked_quant.name)
+
+    def on_instrument_change(self):
+        # clear all data from quantity combo
+        self.quantity_combo.clear()
+        self.quantity_combo.addItem("None")
+        selected_instrument = self.selected_instrument
+
+        if selected_instrument is None:
+            return
+
+        # Names of all visible quantities
+        quantities = list(x.name for x in selected_instrument.get_visible_quantities())
+
+        # This stops cyclical linking
+        if selected_instrument.name == self.quantity_manager.instrument_name:
+            quantities.remove(self.quantity_manager.name)
+
+        self.quantity_combo.addItems(quantities)
+
+    @property
+    def selected_instrument(self) -> Optional[InstrumentManager]:
+        if self.instrument_combo.currentText() == "None":
+            return None
+        return self.connected_instruments[self.instrument_combo.currentText()]
+
+    @property
+    def linked_quantity(self) -> Optional[QuantityManager]:
+        selected_instrument = self.selected_instrument
+        if selected_instrument is None or self.quantity_combo.currentText() == "None":
+            return None
+
+        return selected_instrument.quantities[self.quantity_combo.currentText()]
+
+    @property
+    def link_set(self):
+        return self.link_set_checkbox.isChecked()
+
+    @property
+    def link_get(self):
+        return self.link_get_checkbox.isChecked()

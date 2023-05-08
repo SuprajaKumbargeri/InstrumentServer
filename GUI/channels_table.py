@@ -7,7 +7,7 @@ import json
 # from Instrument.instrument_manager import InstrumentManager
 
 class ChannelsTreeWidget(QTreeWidget):
-    def __init__(self, parent_gui, channels_added: dict(), logger: logging.Logger):
+    def __init__(self, parent_gui, channels_added: dict, logger: logging.Logger):
         super().__init__()
 
         self._parent_gui = parent_gui
@@ -37,6 +37,20 @@ class ChannelsTreeWidget(QTreeWidget):
 
         self.itemSelectionChanged.connect(self.channels_table_selection_changed)
         self.itemDoubleClicked.connect(self.show_quantity_frame_gui)
+
+        # Context menu for linking
+        # when user right clicks, this pops up
+        self.edit_action = QAction('Edit value')
+        self.link_action = QAction('Link quantity')
+        self.unlink_action = QAction('Unlink quantity')
+        self.menu = QMenu()
+        self.menu.addAction(self.edit_action)
+        self.menu.addSeparator()
+        self.menu.addAction(self.link_action)
+        self.menu.addAction(self.unlink_action)
+
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.custom_context_menu_event)
 
     def add_channel_item(self, instrument_manager):
         im = instrument_manager
@@ -92,6 +106,19 @@ class ChannelsTreeWidget(QTreeWidget):
                 self.takeTopLevelItem(self.indexOfTopLevelItem(selected_item))
                 return cute_name
         return
+
+    def custom_context_menu_event(self):
+        # Displays context menu if quantity is right clicked
+        if self.currentItem().parent() is None:
+            return
+
+        action = self.menu.exec(QCursor.pos())
+        if action == self.edit_action:
+            self.show_quantity_frame_gui(self.currentItem())
+        elif action == self.link_action:
+            self.show_link_frame_gui(self.currentItem())
+        elif action == self.unlink_action:
+            self.unlink_quantity(self.currentItem())
     
     def show_quantity_frame_gui(self, selected_item, column=None):   
         parent_item = selected_item.parent()
@@ -138,6 +165,32 @@ class ChannelsTreeWidget(QTreeWidget):
             # This is to avoid having non-visible quantities being present in the Step Sequence and Log Channels table
             self._parent_gui.remove_experiment_quantities(cute_name)
 
+
+    def show_link_frame_gui(self, selected_item):
+        """Dialog that pops up when user right clicks and selects link quantity"""
+        parent_item = selected_item.parent()
+        if parent_item is None:
+            return
+
+        im = self.channels_added[parent_item.text(0)]
+        quantity = im.quantities[selected_item.text(0)]
+
+        try:
+            dialog = LinkQuantityDialog(quantity, self.channels_added)
+            dialog.exec()
+        except Exception as e:
+            print(e)
+
+    def unlink_quantity(self, selected_item):
+        parent_item = selected_item.parent()
+        if parent_item is None:
+            return
+
+        im = self.channels_added[parent_item.text(0)]
+        quantity = im.quantities[selected_item.text(0)]
+
+        quantity.linked_quantity_set = None
+        quantity.linked_quantity_get = None
 
     def channels_table_selection_changed(self):
         selected_item = self.currentItem()
@@ -186,9 +239,7 @@ class AddChannelDialog(QDialog):
         layout = QVBoxLayout()
         layout.addWidget(self.tree_widget)
         layout.addWidget(QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, 
-                                        self, 
-                                        accepted=self.accept, 
-                                        rejected=self.reject))
+                                        self, accepted=self.accept, rejected=self.reject))
         self.setLayout(layout)
 
     def get_selected_item(self):
@@ -197,6 +248,7 @@ class AddChannelDialog(QDialog):
             return selected_item.text(0)
         else:
             return None
+
 
 class ModifyQuantity(QDialog):
     def __init__(self, quantity, frame):
@@ -220,3 +272,41 @@ class ModifyQuantity(QDialog):
         dialog_layout.addWidget(frame)
         dialog_layout.addLayout(button_section)
         self.setLayout(dialog_layout)
+
+
+class LinkQuantityDialog(QDialog):
+    """Dialog that pops up when user wants to link quantities"""
+    def __init__(self, quantity: QuantityManager, connected_instruments: dict[str: InstrumentManager]):
+        super().__init__()
+
+        self.quantity = quantity
+        self.link_frame = LinkQuantityFrame(quantity, connected_instruments)
+
+        self.setWindowTitle(f"Link {quantity.name}")
+        button_section = QHBoxLayout()
+        ok_btn = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        ok_btn.accepted.connect(self.accept)
+        button_section.addWidget(ok_btn)
+
+        dialog_layout = QVBoxLayout(self)
+        dialog_layout.addWidget(self.link_frame)
+        dialog_layout.addLayout(button_section)
+        self.setLayout(dialog_layout)
+
+    def accept(self):
+        if self.link_frame.linked_quantity is None:
+            self.quantity.linked_quantity_set = None
+            self.quantity.linked_quantity_get = None
+            return
+
+        if self.link_frame.link_set:
+            self.quantity.linked_quantity_set = self.link_frame.linked_quantity
+        else:
+            self.quantity.linked_quantity_set = None
+        if self.link_frame.link_get:
+            self.quantity.linked_quantity_get = self.link_frame.linked_quantity
+        else:
+            self.quantity.linked_quantity_get = None
+
+        self.close()
+

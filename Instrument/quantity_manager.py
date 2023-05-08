@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Callable
 import requests
 
@@ -33,10 +34,28 @@ class QuantityManager:
         self.str_true = str_true
         self.str_false = str_false
 
+        # If quantity is linked to another, when get/set are called, it calls the corresponding linked quantity instead
+        self.linked_quantity_get: QuantityManager = None
+        self.linked_quantity_set: QuantityManager = None
+
     # region set_value methods
     def set_value(self, value):
+        """Sets quantity value to <value>"""
+        if self.linked_quantity_set:
+            self.linked_quantity_set.set_latest_value(value)
+            return
+        
         value = self.convert_value(value)
 
+        # add the value to the command and write to instrument
+        cmd = self.set_cmd
+        if "<*>" in cmd:
+            cmd = cmd.replace("<*>", str(value))
+        else:
+            cmd += f' {value}'
+
+
+        value = self.convert_value(value)
         # add the value to the command and write to instrument
         cmd = self.set_cmd
         if "<*>" in cmd:
@@ -48,20 +67,35 @@ class QuantityManager:
         self.latest_value = value
 
     def set_default_value(self):
+        """Sets quantity value to default value as defined in driver"""
+        if self.linked_quantity_set:
+            self.linked_quantity_set.set_default_value()
+            return
+
         self.set_value(self.default_value)
 
     def set_latest_value(self, value):
+        """Sets quantity's latest_value in database to <value>"""
+        if self.linked_quantity_set:
+            self.linked_quantity_set.set_latest_value(value)
+            return
+
         self.latest_value = value
 
         # send to server
         url = r'http://127.0.0.1:5000/instrumentDB/setLatestValue'
-        response = requests.put(url, params={'cute_name': self.instrument_name, 'label': self.name, 'latest_value': value})
+        response = requests.put(url, params={
+            'cute_name': self.instrument_name, 'label': self.name, 'latest_value': value})
         if response.status_code >= 300:
             response.raise_for_status()
     # endregion
 
     # region get_value methods
     def get_value(self):
+        """Returns quantity value in user form"""
+        if self.linked_quantity_get:
+            return self.linked_quantity_get.get_value()
+
         self._write_method(self.get_cmd)
         value = self._read_method()
 
@@ -70,6 +104,10 @@ class QuantityManager:
         return self.convert_return_value(value)
 
     def get_latest_value(self):
+        """Returns quantity latest_value in database in user form"""
+        if self.linked_quantity_get:
+            return self.linked_quantity_get.get_latest_value()
+
         # query server
         url = r'http://127.0.0.1:5000/instrumentDB/getLatestValue'
         response = requests.get(url, params={'cute_name': self.instrument_name, 'label': self.name})
@@ -146,7 +184,8 @@ class QuantityManager:
                     return key
 
             raise ValueError(
-                f"{self.name} returned an invalid value for {self.name}. {value} is not a valid combo value. Please check instrument driver.")
+                f"{self.name} returned an invalid value for {self.name}. "
+                f"{value} is not a valid combo value. Please check instrument driver.")
 
         else:
             return value
@@ -175,7 +214,8 @@ class QuantityManager:
                 valid_cmds = list(self.combo_cmd.values())
             else:
                 raise ValueError(
-                    f"Quantity {self.name} of type 'COMBO' has no associated states or commands. Please update the driver and reupload to the Instrument Server.")
+                    f"Quantity {self.name} of type 'COMBO' has no associated states or commands. "
+                    f"Please update the driver and reupload to the Instrument Server.")
 
             if value not in valid_states and value not in valid_cmds:
                 raise ValueError(
